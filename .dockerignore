@@ -1,0 +1,12 @@
+.git
+.gitignore
+README.md
+*.md
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+uploads/*.xlsx
+uploads/*.csv
+uploads/*.xls
+uploads/*.tmp

@@ -1,0 +1,23 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Planner Logistic Motos</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="login-container">
+    <form method="POST" action="/">
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="logo">
+      <h2>Planner Logistic Motos by Gilberto Thinkan</h2>
+      {% if error %}
+        <p style="color:red;">{{ error }}</p>
+      {% endif %}
+      <input type="text" name="usuario" placeholder="Usuario" required>
+      <input type="password" name="contrasena" placeholder="Contraseña" required>
+      <button type="submit">Ingresar</button>
+    </form>
+  </div>
+</body>
+</html>

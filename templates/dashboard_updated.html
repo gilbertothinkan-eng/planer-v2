@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Planner Logístico</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+      .panel { margin: 16px 0; padding: 12px; border: 1px solid #333; border-radius: 8px; }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      ul { margin: 0; padding-left: 20px; }
+      h2 { margin-top: 0; }
+      .actions { display:flex; gap:12px; flex-wrap: wrap; }
+      input[type="text"], input[type="number"] { padding: 6px 10px; margin: 4px; }
+      button { padding: 8px 12px; }
+      .referencia-item { margin: 8px 0; padding: 8px; background: #3a3a3a; border-radius: 4px; }
+      .cod-int { font-weight: bold; color: #81d4fa; }
+      .descripcion { font-size: 0.9em; color: #ccc; margin-top: 4px; }
+      .stats { font-size: 0.85em; color: #999; }
+    </style>
+</head>
+<body>
+    <h1>Planeador de Despacho - COD INT v2.0</h1>
+
+    <div class="panel">
+      <h2>Subir archivo Excel (Informe de Reserva)</h2>
+      <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+          <input type="file" name="file" accept=".xlsx,.xls" required>
+          <button type="submit">Cargar</button>
+      </form>
+    </div>
+
+    <div class="cols">
+      <div class="panel">
+        <h2>Conteo por ciudades (Estado Satf = 40)</h2>
+        {% if ciudades %}
+          <ul>
+            {% for ciudad, cantidad in ciudades.items() %}
+              <li><strong>{{ ciudad }}</strong>: {{ cantidad }} motos</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>Sin datos cargados.</p>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <h2>Referencias especiales por ciudad (COD INT)</h2>
+        <form action="{{ url_for('actualizar_referencias') }}" method="POST">
+          {% if referencias %}
+            {% for ciudad, refs in referencias.items() %}
+              <h3>{{ ciudad }}</h3>
+              {% for r in refs %}
+                <div class="referencia-item">
+                  <label>
+                    <input type="checkbox" name="{{ ciudad }}_{{ r.cod_int }}" {% if r.usar %}checked{% endif %}>
+                    <div class="cod-int">{{ r.cod_int }}</div>
+                    <div class="descripcion">{{ r.descripcion }}</div>
+                    <div class="stats">Cant: {{ r.cantidad }} | Equivalencia: {{ r.equivalencia }} | Total espacios: {{ r.total }}</div>
+                  </label>
+                </div>
+              {% endfor %}
+            {% endfor %}
+            <button type="submit">Actualizar referencias especiales</button>
+          {% else %}
+            <p>No hay referencias especiales detectadas.</p>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Registrar vehículo</h2>
+      <form class="actions" action="{{ url_for('registrar_vehiculo') }}" method="POST">
+          <input type="text" name="transportadora" placeholder="Transportadora" required>
+          <input type="text" name="conductor" placeholder="Conductor" required>
+          <input type="text" name="placa" placeholder="Placa" required>
+          <input type="number" name="cantidad_motos" placeholder="Capacidad (espacios)" required>
+          <input type="text" name="ciudades" placeholder="Ciudad objetivo (ej: CARTAGENA)" required>
+          <button type="submit">Registrar</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Generar planeador</h2>
+      <form action="{{ url_for('generar_planeador') }}" method="POST">
+          <button type="submit">Generar Excel de Despacho</button>
+      </form>
+    </div>
+</body>
+</html>
