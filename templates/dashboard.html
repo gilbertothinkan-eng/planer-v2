@@ -76,8 +76,28 @@
     </style>
 </head>
 <body>
-    <h1>Planeador de Despacho - COD INT v2.0</h1>
-
+    <div class="header-title">
+  <h1>Planeador de Despacho - AKT Motos</h1>
+  <h3 class="subtitle">By Gilberto Thinkan</h3>
+</div>
+<style>
+  .header-title {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .header-title h1 {
+    color: #81d4fa;
+    font-size: 2rem;
+    margin-bottom: 4px;
+  }
+  .header-title .subtitle {
+    color: #00e676;
+    font-size: 1rem;
+    font-weight: normal;
+    letter-spacing: 1px;
+    opacity: 0.9;
+  }
+</style>
     {% if session.mensaje %}
     <div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px;">
       {{ session.mensaje }}
