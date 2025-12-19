@@ -2,26 +2,27 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 import pandas as pd
 from collections import Counter
 import os
+from typing import Dict, List, Optional, Set, Tuple
 
 app = Flask(__name__)
 app.secret_key = 'gilberto_clave_super_secreta'
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-vehiculos = []
-conteo_ciudades = {}
+vehiculos: List[dict] = []
+conteo_ciudades: Dict[str, int] = {}
 datos_motos_original = pd.DataFrame()
 
-# =======================
-# EQUIVALENCIAS
-# =======================
-
+# DICCIONARIO COMPLETO DE EQUIVALENCIAS basado en COD INT (columna AC)
 equivalencias = {
+    # Las del archivo actual (que detecté)
     "AK200ZW": 6,
     "ATUL RIK": 12,
     "AK250CR4 EFI": 2,
     "HIMALAYAN 452": 2,
     "HNTR 350": 2,
+
+    # Las de tu tabla de equivalencias (imagen)
     "300AC": 2,
     "300DS": 2,
     "300RALLY": 2,
@@ -36,6 +37,8 @@ equivalencias = {
     "SCRAM 411 SPIRIT": 2,
     "SHOTGUN 650": 2,
     "SUPER METEOR 650": 2,
+
+    # Las que aparecen en tu archivo pero no tienen equivalencia especial (asumo = 1)
     "AK110NV EIII": 1,
     "AK125CR4 EIII": 1,
     "AK125DYN PRO+": 1,
@@ -49,184 +52,217 @@ equivalencias = {
     "DYNAMIC RX": 1
 }
 
-referencias_seleccionadas = {}
+# Para guardar qué referencias selecciona el usuario (SOLO especiales)
+referencias_seleccionadas: Dict[str, List[dict]] = {}
 
-# =======================
-# HELPERS
-# =======================
 
-def get_equivalencia(cod_int):
-    if pd.isna(cod_int):
+def get_equivalencia(cod_int: str) -> int:
+    """Retorna la equivalencia en espacios basada en COD INT."""
+    if pd.isna(cod_int) or cod_int == "":
         return 1
-    return equivalencias.get(str(cod_int).strip().upper(), 1)
+    cod_int_str = str(cod_int).strip().upper()
+    return equivalencias.get(cod_int_str, 1)
 
-def encontrar_referencia_especial(cod_int, ciudad):
-    ciudad = ciudad.upper()
-    cod_int = str(cod_int).strip().upper()
-    for r in referencias_seleccionadas.get(ciudad, []):
-        if str(r["cod_int"]).strip().upper() == cod_int:
+
+def es_especial(cod_int: str) -> bool:
+    """Una referencia es especial si su equivalencia es mayor a 1."""
+    return get_equivalencia(cod_int) > 1
+
+
+def encontrar_referencia_especial(cod_int: str, ciudad: str) -> Optional[dict]:
+    """Busca una referencia especial en la lista de referencias seleccionadas de una ciudad."""
+    if ciudad not in referencias_seleccionadas:
+        return None
+
+    cod_int_str = str(cod_int).strip().upper()
+    for r in referencias_seleccionadas[ciudad]:
+        r_cod_int = str(r["cod_int"]).strip().upper()
+        if r_cod_int == cod_int_str:
             return r
     return None
 
-# =======================
-# KNAPSACK
-# =======================
 
-def seleccionar_direcciones_knapsack(items, capacidad):
-    dp = [None] * (capacidad + 1)
-    dp[0] = {"peso": 0, "num": 0, "ids": set()}
+def _excel_safe_sheet_name(name: str) -> str:
+    """Excel limita el nombre de hoja a 31 caracteres."""
+    safe = (name or "SIN_PLACA").strip()
+    safe = safe.replace("/", "-").replace("\\", "-").replace(":", "-").replace("*", "-").replace("?", "-")
+    safe = safe.replace("[", "(").replace("]", ")")
+    return safe[:31] if len(safe) > 31 else safe
 
-    for item in items:
-        w = item["peso"]
+
+def seleccionar_items_knapsack_menos_items(items: List[Tuple[int, int]], capacidad: int) -> Set[int]:
+    """
+    Knapsack 0/1:
+    - items: [(item_id, peso)]
+    - maximiza peso <= capacidad
+    - empate: menor cantidad de items
+    Retorna: set(item_id)
+    """
+    if capacidad <= 0 or not items:
+        return set()
+
+    # dp[c] = (peso_total, num_items, set_ids)
+    dp: List[Optional[Tuple[int, int, Set[int]]]] = [None] * (capacidad + 1)
+    dp[0] = (0, 0, set())
+
+    for item_id, w in items:
+        if w <= 0 or w > capacidad:
+            continue
         for c in range(capacidad, w - 1, -1):
-            if dp[c - w] is None:
+            prev = dp[c - w]
+            if prev is None:
                 continue
-            nuevo_peso = dp[c - w]["peso"] + w
-            nuevo_num = dp[c - w]["num"] + 1
-            if (
-                dp[c] is None or
-                nuevo_peso > dp[c]["peso"] or
-                (nuevo_peso == dp[c]["peso"] and nuevo_num < dp[c]["num"])
-            ):
-                dp[c] = {
-                    "peso": nuevo_peso,
-                    "num": nuevo_num,
-                    "ids": dp[c - w]["ids"] | {item["id"]}
-                }
+            cand_peso = prev[0] + w
+            cand_num = prev[1] + 1
 
-    mejor = max(
-        (x for x in dp if x),
-        key=lambda x: (x["peso"], -x["num"]),
-        default=None
-    )
-    return mejor["ids"] if mejor else set()
+            cur = dp[c]
+            if cur is None or cand_peso > cur[0] or (cand_peso == cur[0] and cand_num < cur[1]):
+                dp[c] = (cand_peso, cand_num, prev[2] | {item_id})
 
-# =======================
-# RUTAS
-# =======================
+    best: Optional[Tuple[int, int, Set[int]]] = None
+    for c in range(capacidad, -1, -1):
+        state = dp[c]
+        if state is None:
+            continue
+        if best is None or state[0] > best[0] or (state[0] == best[0] and state[1] < best[1]):
+            best = state
+
+    return best[2] if best else set()
+
 
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        if request.form["usuario"] == "admin" and request.form["contrasena"] == "1234":
-            session["usuario"] = "admin"
+        usuario = request.form["usuario"]
+        contrasena = request.form["contrasena"]
+        if usuario == "admin" and contrasena == "1234":
+            session["usuario"] = usuario
             return redirect(url_for("dashboard"))
         return render_template("login.html", error="Usuario o contraseña incorrectos")
-    return render_template("login.html")
+    return render_template("login.html", error=None)
 
-@app.route("/dashboard")
+
+@app.route("/dashboard", methods=["GET"])
 def dashboard():
     if "usuario" not in session:
         return redirect(url_for("login"))
-    return render_template("dashboard.html", ciudades=conteo_ciudades, referencias=referencias_seleccionadas)
+    # si tu template usa session['mensaje'], esto evita 500 por variable faltante
+    mensaje = session.pop("mensaje", None)
+    return render_template(
+        "dashboard.html",
+        ciudades=conteo_ciudades,
+        referencias=referencias_seleccionadas,
+        vehiculos=vehiculos,
+        mensaje=mensaje
+    )
+
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    global datos_motos_original, conteo_ciudades, referencias_seleccionadas
+    global conteo_ciudades, datos_motos_original, referencias_seleccionadas
     file = request.files["file"]
-    path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(path)
+    if file and (file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
+        df = pd.read_excel(filepath)
 
-    df = pd.read_excel(path)
-    df = df[df["Estado Satf"] == 40].copy()
-    df["Descr EXXIT"] = df["Descr EXXIT"].str.upper()
-    datos_motos_original = df
+        # Filtramos solo Estado Satf = 40
+        datos_motos_original = df[df["Estado Satf"] == 40].copy()
 
-    conteo_ciudades = dict(Counter(df["Descr EXXIT"]))
+        # Conteo de ciudades (Descr EXXIT) - MANTENER
+        if "Descr EXXIT" in datos_motos_original.columns:
+            conteo = Counter(datos_motos_original["Descr EXXIT"].dropna().astype(str).str.upper())
+            conteo_ciudades = dict(sorted(conteo.items(), key=lambda x: x[0]))
 
-    referencias_seleccionadas = {}
-    reporte = df.groupby(["Descr EXXIT", "COD INT"]).size().reset_index(name="Cantidad")
+        # Construcción del reporte SOLO de referencias especiales por ciudad
+        referencias_seleccionadas = {}
+        if "COD INT" in datos_motos_original.columns and "Descr EXXIT" in datos_motos_original.columns:
+            reporte = (
+                datos_motos_original.groupby([datos_motos_original["Descr EXXIT"].astype(str).str.upper(), "COD INT"])
+                .size()
+                .reset_index(name="Cantidad")
+            )
+            for _, row in reporte.iterrows():
+                ciudad = row["Descr EXXIT"]
+                cod_int = row["COD INT"]
+                eq = get_equivalencia(cod_int)
+                if eq <= 1:
+                    continue
 
-    for _, r in reporte.iterrows():
-        eq = get_equivalencia(r["COD INT"])
-        if eq > 1:
-            referencias_seleccionadas.setdefault(r["Descr EXXIT"], []).append({
-                "cod_int": r["COD INT"],
-                "usar": True
-            })
+                cant = int(row["Cantidad"])
+                total = cant * eq
+                referencias_seleccionadas.setdefault(ciudad, [])
+
+                # Obtener descripción representativa para mostrar en la interfaz
+                mask = (
+                    (datos_motos_original["Descr EXXIT"].astype(str).str.upper() == ciudad) &
+                    (datos_motos_original["COD INT"] == cod_int)
+                )
+                if "Descripcion" in datos_motos_original.columns and not datos_motos_original.loc[mask].empty:
+                    descripcion_ejemplo = datos_motos_original.loc[mask, "Descripcion"].iloc[0]
+                else:
+                    descripcion_ejemplo = str(cod_int)
+
+                referencias_seleccionadas[ciudad].append({
+                    "cod_int": cod_int,
+                    "descripcion": descripcion_ejemplo,
+                    "cantidad": cant,
+                    "equivalencia": eq,
+                    "total": total,
+                    "usar": True
+                })
 
     return redirect(url_for("dashboard"))
 
+
+@app.route("/actualizar_referencias", methods=["POST"])
+def actualizar_referencias():
+    global referencias_seleccionadas
+
+    # Actualiza solo especiales; si no está aquí, es normal y siempre se usa
+    for ciudad, refs in referencias_seleccionadas.items():
+        for r in refs:
+            key = f"{ciudad}_{r['cod_int']}"
+            r["usar"] = key in request.form
+
+    session['mensaje'] = "✅ Selección de referencias especiales guardada correctamente"
+    return redirect(url_for("dashboard"))
+
+
 @app.route("/registrar_vehiculo", methods=["POST"])
 def registrar_vehiculo():
-    vehiculos.append({
+    data = {
         "transportadora": request.form["transportadora"],
         "conductor": request.form["conductor"],
         "placa": request.form["placa"],
         "cantidad_motos": int(request.form["cantidad_motos"]),
-        "ciudades": [request.form["ciudades"].strip().upper()]
-    })
+        "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",") if c.strip()]
+    }
+    vehiculos.append(data)
     return redirect(url_for("dashboard"))
 
-# =======================
-# 🚀 GENERAR PLANEADOR (NUEVO)
-# =======================
 
 @app.route("/generar_planeador", methods=["POST"])
 def generar_planeador():
+    """
+    NUEVA LÓGICA:
+    - Agrupa por Dirección 1 (NO se divide una dirección)
+    - NO repite direcciones entre vehículos
+    - Llena al máximo por ciudad con knapsack (empate: menos direcciones)
+    - Respeta referencias especiales (usar/no usar)
+    - Respeta equivalencias
+    """
+    if datos_motos_original.empty:
+        return "<h2>No hay datos cargados aún.</h2>"
+
+    if not vehiculos:
+        return "<h2>No hay vehículos registrados.</h2>"
+
     df = datos_motos_original.copy()
     excel_path = os.path.join(UPLOAD_FOLDER, "Despacho_Final.xlsx")
 
-    direcciones_usadas = set()
-    assigned_indices = set()
+    # Para asegurar consistencia de ciudad/dirección
+    df["CIUDAD_NORM"] = df["Descr EXXIT"].astype(str).str.upper()
+    df["DIR_NORM"] = df["Dirección 1"].astype(str).str.strip().str.upper()
 
-    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-        for vehiculo in vehiculos:
-            ciudad = vehiculo["ciudades"][0]
-            capacidad = vehiculo["cantidad_motos"]
-
-            df_ciudad = df[
-                (df["Descr EXXIT"] == ciudad) &
-                (~df.index.isin(assigned_indices))
-            ]
-
-            direcciones = {}
-            for idx, row in df_ciudad.iterrows():
-                dir_norm = str(row["Dirección 1"]).strip().upper()
-                if dir_norm in direcciones_usadas:
-                    continue
-
-                eq = get_equivalencia(row["COD INT"])
-                if eq > 1:
-                    ref = encontrar_referencia_especial(row["COD INT"], ciudad)
-                    if ref and not ref["usar"]:
-                        continue
-
-                direcciones.setdefault(dir_norm, {"peso": 0, "indices": []})
-                direcciones[dir_norm]["peso"] += eq
-                direcciones[dir_norm]["indices"].append(idx)
-
-            items = []
-            keys = list(direcciones.keys())
-            for i, k in enumerate(keys):
-                items.append({"id": i, "peso": direcciones[k]["peso"]})
-
-            seleccion = seleccionar_direcciones_knapsack(items, capacidad)
-
-            usados = []
-            carga = 0
-            for item in items:
-                if item["id"] in seleccion:
-                    k = keys[item["id"]]
-                    direcciones_usadas.add(k)
-                    usados.extend(direcciones[k]["indices"])
-                    carga += direcciones[k]["peso"]
-
-            assigned_indices.update(usados)
-            asignado = df.loc[usados] if usados else pd.DataFrame()
-
-            encabezado = pd.DataFrame([{
-                "Placa": vehiculo["placa"],
-                "Capacidad": capacidad,
-                "Ocupado": carga,
-                "Ciudad": ciudad
-            }])
-
-            hoja = vehiculo["placa"]
-            encabezado.to_excel(writer, sheet_name=hoja, index=False)
-            asignado.to_excel(writer, sheet_name=hoja, startrow=3, index=False)
-
-    return send_file(excel_path, as_attachment=True)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    direcciones_usadas: Set[str] = set()   # NO repetir direcciones entr_
