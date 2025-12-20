@@ -6,6 +6,7 @@ from typing import Dict, List, Set, Optional, Tuple
 
 app = Flask(__name__)
 app.secret_key = "gilberto_clave_super_secreta"
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -58,9 +59,7 @@ def get_equivalencia(cod_int: str) -> int:
 
 def encontrar_referencia_especial(cod_int: str, ciudad: str) -> Optional[dict]:
     ciudad = ciudad.upper()
-    if ciudad not in referencias_seleccionadas:
-        return None
-    for r in referencias_seleccionadas[ciudad]:
+    for r in referencias_seleccionadas.get(ciudad, []):
         if str(r["cod_int"]).strip().upper() == str(cod_int).strip().upper():
             return r
     return None
@@ -82,9 +81,9 @@ def knapsack_max(items: List[Tuple[int, int]], cap: int) -> Set[int]:
                 continue
             peso, cnt, ids = dp[c - w]
             cand = (peso + w, cnt + 1, ids | {i})
-            if dp[c] is None or cand[0] > dp[c][0] or (cand[0] == dp[c][0] and cand[1] < dp[c][1]):
+            if dp[c] is None or cand[0] > dp[c][0]:
                 dp[c] = cand
-    best = max([x for x in dp if x], key=lambda x: (x[0], -x[1]), default=None)
+    best = max([x for x in dp if x], key=lambda x: x[0], default=None)
     return best[2] if best else set()
 
 # ===================== ROUTES =====================
@@ -131,16 +130,15 @@ def upload():
             [datos_motos_original["Descr EXXIT"].str.upper(), "COD INT"]
         ):
             eq = get_equivalencia(cod)
-            if eq <= 1:
-                continue
-            referencias_seleccionadas.setdefault(ciudad, []).append({
-                "cod_int": cod,
-                "cantidad": len(grp),
-                "equivalencia": eq,
-                "usar": True
-            })
+            if eq > 1:
+                referencias_seleccionadas.setdefault(ciudad, []).append({
+                    "cod_int": cod,
+                    "cantidad": len(grp),
+                    "equivalencia": eq,
+                    "usar": True
+                })
 
-        session["mensaje"] = "✅ Archivo cargado"
+        session["mensaje"] = "✅ Archivo cargado correctamente"
     return redirect(url_for("dashboard"))
 
 
@@ -174,7 +172,6 @@ def generar_planeador():
 
     df = datos_motos_original.copy()
 
-    # FIFO por fecha de liberación
     df["Fecha Liberacion."] = pd.to_datetime(df["Fecha Liberacion."], errors="coerce")
     df = df.sort_values("Fecha Liberacion.")
 
@@ -183,8 +180,8 @@ def generar_planeador():
 
     direcciones_usadas: Set[str] = set()
     plan = []
+    mensajes = []
 
-    # ======= FASE 1: VALIDACIÓN (SIN EXCEL) =======
     for v in vehiculos:
         ciudad = v["ciudades"][0]
         capacidad = v["cantidad_motos"]
@@ -211,23 +208,30 @@ def generar_planeador():
 
         idxs = []
         carga = 0
+        dirs_tmp = set()
+
         for pos, k in enumerate(bloques):
             if pos in seleccion:
                 idxs.extend(bloques[k]["idx"])
                 carga += bloques[k]["peso"]
+                dirs_tmp.add(k)
 
-        # ❌ NO se permite carga parcial
-        if carga != capacidad:
-            session["mensaje"] = (
-                "⚠️ No hay suficientes motos para completar el vehículo, "
-                "por optimización de ruta no es conveniente cargar."
+        if carga == capacidad:
+            direcciones_usadas.update(dirs_tmp)
+            plan.append((v, df.loc[idxs], carga))
+        else:
+            mensajes.append(
+                f"⚠️ Vehículo {v['placa']} no se despachó: "
+                "no hay suficientes motos para completar el vehículo."
             )
-            return redirect(url_for("dashboard"))
 
-        direcciones_usadas.update(bloques[k]["idx"][0] and k for pos, k in enumerate(bloques) if pos in seleccion)
-        plan.append((v, df.loc[idxs], carga))
+    if not plan:
+        session["mensaje"] = (
+            "⚠️ No hay suficientes motos para completar ningún vehículo, "
+            "por optimización de ruta no es conveniente cargar."
+        )
+        return redirect(url_for("dashboard"))
 
-    # ======= FASE 2: GENERAR EXCEL =======
     excel_path = os.path.join(UPLOAD_FOLDER, "Despacho_Final.xlsx")
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         for v, asignado, carga in plan:
@@ -241,6 +245,9 @@ def generar_planeador():
             hoja = safe_sheet_name(v["placa"])
             encabezado.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
             asignado.to_excel(writer, sheet_name=hoja, index=False, startrow=3)
+
+    if mensajes:
+        session["mensaje"] = " | ".join(mensajes)
 
     return send_file(excel_path, as_attachment=True)
 
