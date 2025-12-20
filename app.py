@@ -178,7 +178,7 @@ def generar_planeador():
     df = df.sort_values("Fecha Liberacion.")
 
     df["CIUDAD"] = df["Descr EXXIT"].str.upper()
-    df["DIR"] = df["Direccion 1"].astype(str).str.upper()
+    df["DIR"] = df["Dirección 1"].astype(str).str.upper()
 
     direcciones_usadas: Set[str] = set()
     excel_path = os.path.join(UPLOAD_FOLDER, "Despacho_Final.xlsx")
