@@ -120,6 +120,7 @@ def upload():
         path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(path)
         df = pd.read_excel(path)
+
         datos_motos_original = df[df["Estado Satf"] == 40].copy()
 
         conteo = Counter(datos_motos_original["Descr EXXIT"].dropna().str.upper())
@@ -173,7 +174,7 @@ def generar_planeador():
 
     df = datos_motos_original.copy()
 
-    # FIFO real
+    # FIFO por fecha de liberación
     df["Fecha Liberacion."] = pd.to_datetime(df["Fecha Liberacion."], errors="coerce")
     df = df.sort_values("Fecha Liberacion.")
 
@@ -181,51 +182,59 @@ def generar_planeador():
     df["DIR"] = df["Dirección 1"].astype(str).str.upper()
 
     direcciones_usadas: Set[str] = set()
-    excel_path = os.path.join(UPLOAD_FOLDER, "Despacho_Final.xlsx")
+    plan = []
 
-    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-        for v in vehiculos:
-            ciudad = v["ciudades"][0]
-            capacidad = v["cantidad_motos"]
+    # ======= FASE 1: VALIDACIÓN (SIN EXCEL) =======
+    for v in vehiculos:
+        ciudad = v["ciudades"][0]
+        capacidad = v["cantidad_motos"]
 
-            dfc = df[df["CIUDAD"] == ciudad]
+        dfc = df[df["CIUDAD"] == ciudad]
 
-            bloques = {}
-            for i, r in dfc.iterrows():
-                if r["DIR"] in direcciones_usadas:
+        bloques = {}
+        for i, r in dfc.iterrows():
+            if r["DIR"] in direcciones_usadas:
+                continue
+
+            eq = get_equivalencia(r["COD INT"])
+            if eq > 1:
+                ref = encontrar_referencia_especial(r["COD INT"], ciudad)
+                if not ref or not ref["usar"]:
                     continue
-                eq = get_equivalencia(r["COD INT"])
-                if eq > 1:
-                    ref = encontrar_referencia_especial(r["COD INT"], ciudad)
-                    if not ref or not ref["usar"]:
-                        continue
-                bloques.setdefault(r["DIR"], {"peso": 0, "idx": []})
-                bloques[r["DIR"]]["peso"] += eq
-                bloques[r["DIR"]]["idx"].append(i)
 
-            items = [(i, bloques[k]["peso"]) for i, k in enumerate(bloques) if bloques[k]["peso"] <= capacidad]
-            seleccion = knapsack_max(items, capacidad)
+            bloques.setdefault(r["DIR"], {"peso": 0, "idx": []})
+            bloques[r["DIR"]]["peso"] += eq
+            bloques[r["DIR"]]["idx"].append(i)
 
-            idxs = []
-            carga = 0
-            for pos, k in enumerate(bloques):
-                if pos in seleccion:
-                    direcciones_usadas.add(k)
-                    idxs.extend(bloques[k]["idx"])
-                    carga += bloques[k]["peso"]
+        items = [(i, bloques[k]["peso"]) for i, k in enumerate(bloques) if bloques[k]["peso"] <= capacidad]
+        seleccion = knapsack_max(items, capacidad)
 
-            if carga < capacidad:
-                session["mensaje"] = (
-                    "⚠️ No hay suficientes motos para completar el vehículo, "
-                    "por optimización de ruta no es conveniente cargar."
-                )
-                return redirect(url_for("dashboard"))
+        idxs = []
+        carga = 0
+        for pos, k in enumerate(bloques):
+            if pos in seleccion:
+                idxs.extend(bloques[k]["idx"])
+                carga += bloques[k]["peso"]
 
-            asignado = df.loc[idxs]
+        # ❌ NO se permite carga parcial
+        if carga != capacidad:
+            session["mensaje"] = (
+                "⚠️ No hay suficientes motos para completar el vehículo, "
+                "por optimización de ruta no es conveniente cargar."
+            )
+            return redirect(url_for("dashboard"))
+
+        direcciones_usadas.update(bloques[k]["idx"][0] and k for pos, k in enumerate(bloques) if pos in seleccion)
+        plan.append((v, df.loc[idxs], carga))
+
+    # ======= FASE 2: GENERAR EXCEL =======
+    excel_path = os.path.join(UPLOAD_FOLDER, "Despacho_Final.xlsx")
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        for v, asignado, carga in plan:
             encabezado = pd.DataFrame([{
                 "Placa": v["placa"],
-                "Ciudad": ciudad,
-                "Capacidad": capacidad,
+                "Ciudad": v["ciudades"][0],
+                "Capacidad": v["cantidad_motos"],
                 "Ocupado": carga
             }])
 
