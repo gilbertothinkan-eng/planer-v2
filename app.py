@@ -2,11 +2,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 import pandas as pd
 from collections import Counter
 import os
-from typing import Dict, List, Set, Optional, Tuple
+from typing import Dict, List, Optional, Set
 
 app = Flask(__name__)
 app.secret_key = "gilberto_clave_super_secreta"
-
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -14,7 +13,7 @@ vehiculos: List[dict] = []
 conteo_ciudades: Dict[str, int] = {}
 datos_motos_original = pd.DataFrame()
 
-# ===================== EQUIVALENCIAS =====================
+# ================= EQUIVALENCIAS =================
 equivalencias = {
     "AK200ZW": 6,
     "ATUL RIK": 12,
@@ -50,7 +49,7 @@ equivalencias = {
 
 referencias_seleccionadas: Dict[str, List[dict]] = {}
 
-# ===================== HELPERS =====================
+# ================= HELPERS =================
 def get_equivalencia(cod_int: str) -> int:
     if pd.isna(cod_int) or str(cod_int).strip() == "":
         return 1
@@ -66,27 +65,12 @@ def encontrar_referencia_especial(cod_int: str, ciudad: str) -> Optional[dict]:
 
 
 def safe_sheet_name(name: str) -> str:
-    name = str(name or "SIN_PLACA")
+    safe = str(name or "SIN_PLACA").strip()
     for ch in ['/', '\\', ':', '*', '?', '[', ']']:
-        name = name.replace(ch, "-")
-    return name[:31]
+        safe = safe.replace(ch, "-")
+    return safe[:31] if len(safe) > 31 else (safe or "SIN_PLACA")
 
-
-def knapsack_max(items: List[Tuple[int, int]], cap: int) -> Set[int]:
-    dp = [None] * (cap + 1)
-    dp[0] = (0, 0, set())
-    for i, w in items:
-        for c in range(cap, w - 1, -1):
-            if dp[c - w] is None:
-                continue
-            peso, cnt, ids = dp[c - w]
-            cand = (peso + w, cnt + 1, ids | {i})
-            if dp[c] is None or cand[0] > dp[c][0]:
-                dp[c] = cand
-    best = max([x for x in dp if x], key=lambda x: x[0], default=None)
-    return best[2] if best else set()
-
-# ===================== ROUTES =====================
+# ================= ROUTES =================
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -122,12 +106,12 @@ def upload():
 
         datos_motos_original = df[df["Estado Satf"] == 40].copy()
 
-        conteo = Counter(datos_motos_original["Descr EXXIT"].dropna().str.upper())
+        conteo = Counter(datos_motos_original["Descr EXXIT"].astype(str).str.upper().str.strip())
         conteo_ciudades = dict(sorted(conteo.items()))
 
         referencias_seleccionadas = {}
         for (ciudad, cod), grp in datos_motos_original.groupby(
-            [datos_motos_original["Descr EXXIT"].str.upper(), "COD INT"]
+            [datos_motos_original["Descr EXXIT"].astype(str).str.upper().str.strip(), "COD INT"]
         ):
             eq = get_equivalencia(cod)
             if eq > 1:
@@ -138,7 +122,7 @@ def upload():
                     "usar": True
                 })
 
-        session["mensaje"] = "✅ Archivo cargado correctamente"
+        session["mensaje"] = "✅ Archivo cargado"
     return redirect(url_for("dashboard"))
 
 
@@ -167,69 +151,59 @@ def actualizar_referencias():
 @app.route("/generar_planeador", methods=["POST"])
 def generar_planeador():
     if datos_motos_original.empty or not vehiculos:
-        session["mensaje"] = "⚠️ No hay datos o vehículos"
         return redirect(url_for("dashboard"))
 
     df = datos_motos_original.copy()
 
-    df["Fecha Liberacion."] = pd.to_datetime(df["Fecha Liberacion."], errors="coerce")
-    df = df.sort_values("Fecha Liberacion.")
+    # FIFO: más antiguas primero
+    if "Fecha Liberacion." in df.columns:
+        df["Fecha Liberacion."] = pd.to_datetime(df["Fecha Liberacion."], errors="coerce")
+        df = df.sort_values("Fecha Liberacion.")
 
-    df["CIUDAD"] = df["Descr EXXIT"].str.upper()
-    df["DIR"] = df["Dirección 1"].astype(str).str.upper()
+    df["CIUDAD"] = df["Descr EXXIT"].astype(str).str.upper().str.strip()
+    df["DIR"] = df["Dirección 1"].astype(str).str.upper().str.strip()
 
     direcciones_usadas: Set[str] = set()
+    indices_usados: Set[int] = set()
     plan = []
-    mensajes = []
 
     for v in vehiculos:
         ciudad = v["ciudades"][0]
         capacidad = v["cantidad_motos"]
 
-        dfc = df[df["CIUDAD"] == ciudad]
+        dfc = df[(df["CIUDAD"] == ciudad) & (~df.index.isin(indices_usados))]
 
-        bloques = {}
-        for i, r in dfc.iterrows():
-            if r["DIR"] in direcciones_usadas:
+        carga = 0
+        idxs = []
+
+        for direccion, grp in dfc.groupby("DIR"):
+            if direccion in direcciones_usadas:
                 continue
 
-            eq = get_equivalencia(r["COD INT"])
-            if eq > 1:
-                ref = encontrar_referencia_especial(r["COD INT"], ciudad)
-                if not ref or not ref["usar"]:
-                    continue
+            peso_dir = 0
+            for _, row in grp.iterrows():
+                eq = get_equivalencia(row["COD INT"])
+                if eq > 1:
+                    ref = encontrar_referencia_especial(row["COD INT"], ciudad)
+                    if not ref or not ref["usar"]:
+                        peso_dir = -1
+                        break
+                peso_dir += eq
 
-            bloques.setdefault(r["DIR"], {"peso": 0, "idx": []})
-            bloques[r["DIR"]]["peso"] += eq
-            bloques[r["DIR"]]["idx"].append(i)
+            if peso_dir <= 0:
+                continue
 
-        items = [(i, bloques[k]["peso"]) for i, k in enumerate(bloques) if bloques[k]["peso"] <= capacidad]
-        seleccion = knapsack_max(items, capacidad)
+            if carga + peso_dir <= capacidad:
+                idxs.extend(grp.index.tolist())
+                carga += peso_dir
+                direcciones_usadas.add(direccion)
 
-        idxs = []
-        carga = 0
-        dirs_tmp = set()
-
-        for pos, k in enumerate(bloques):
-            if pos in seleccion:
-                idxs.extend(bloques[k]["idx"])
-                carga += bloques[k]["peso"]
-                dirs_tmp.add(k)
-
-        if carga == capacidad:
-            direcciones_usadas.update(dirs_tmp)
-            plan.append((v, df.loc[idxs], carga))
-        else:
-            mensajes.append(
-                f"⚠️ Vehículo {v['placa']} no se despachó: "
-                "no hay suficientes motos para completar el vehículo."
-            )
+        if carga > 0:
+            asignado = df.loc[idxs]
+            indices_usados.update(asignado.index.tolist())
+            plan.append((v, asignado, carga))
 
     if not plan:
-        session["mensaje"] = (
-            "⚠️ No hay suficientes motos para completar ningún vehículo, "
-            "por optimización de ruta no es conveniente cargar."
-        )
         return redirect(url_for("dashboard"))
 
     excel_path = os.path.join(UPLOAD_FOLDER, "Despacho_Final.xlsx")
@@ -239,15 +213,12 @@ def generar_planeador():
                 "Placa": v["placa"],
                 "Ciudad": v["ciudades"][0],
                 "Capacidad": v["cantidad_motos"],
-                "Ocupado": carga
+                "Ocupado": carga,
+                "Cantidad filas": len(asignado)
             }])
-
             hoja = safe_sheet_name(v["placa"])
             encabezado.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
             asignado.to_excel(writer, sheet_name=hoja, index=False, startrow=3)
-
-    if mensajes:
-        session["mensaje"] = " | ".join(mensajes)
 
     return send_file(excel_path, as_attachment=True)
 
