@@ -16,7 +16,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 vehiculos: List[dict] = []
 conteo_ciudades: Dict[str, int] = {}
 datos_motos_original = pd.DataFrame()
-referencias_seleccionadas: Dict[str, List[dict]] = {}
+# Nota: referencias_seleccionadas ya no se usa activamente en la lógica final de planeador
+referencias_seleccionadas: Dict[str, List[dict]] = {} 
+
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2, "CLASSIC 350": 2,
@@ -28,7 +30,6 @@ equivalencias = {
 }
 
 # --- FUNCIONES DE APOYO ---
-
 def get_equivalencia(cod_int: str) -> int:
     if pd.isna(cod_int) or str(cod_int).strip() == "": return 1
     return equivalencias.get(str(cod_int).strip().upper(), 1)
@@ -39,10 +40,6 @@ def _excel_safe_sheet_name(name: str) -> str:
     return safe[:31]
 
 def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[List[int], int]:
-    """
-    Maximiza peso (espacios) y desempata con menos items (direcciones).
-    Retorna (indices_seleccionados, peso_total_logrado)
-    """
     n = len(items)
     dp = [(0, 0)] * (capacidad + 1)
     item_seleccionado = [[] for _ in range(capacidad + 1)]
@@ -50,8 +47,7 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
     for i, item in enumerate(items):
         w_i = item['peso']
         for w in range(capacidad, w_i - 1, -1):
-            # Tupla (peso total, -num items)
-            cand_val = (dp[w - w_i][0] + w_i, dp[w - w_i][1] - 1) 
+            cand_val = (dp[w - w_i][0] + w_i, dp[w - w_i][1] - 1) # Asegurar acceso a tupla
             if cand_val > dp[w]:
                 dp[w] = cand_val
                 item_seleccionado[w] = item_seleccionado[w - w_i] + [item['id']]
@@ -65,7 +61,7 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
             
     return item_seleccionado[mejor_w], dp[mejor_w][0] # Retorna indices y peso total logrado
 
-# --- RUTAS FLASK (login, dashboard, upload, registrar_vehiculo - sin cambios) ---
+# --- RUTAS FLASK ---
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -93,6 +89,19 @@ def upload():
         conteo_ciudades = df["Descr EXXIT"].value_counts().to_dict()
     return redirect(url_for("dashboard"))
 
+# *** ESTA ES LA FUNCIÓN QUE FALTABA Y CAUSABA EL ERROR ***
+@app.route("/actualizar_referencias", methods=["POST"])
+def actualizar_referencias():
+    # Nota: Esta función es necesaria para que el HTML funcione, aunque la lógica final del planeador no la usa.
+    global referencias_seleccionadas
+    for ciudad, refs in referencias_seleccionadas.items():
+        for r in refs:
+            key = f"{ciudad}_{r['cod_int']}"
+            r["usar"] = key in request.form
+    session["mensaje"] = "✅ Selección guardada"
+    return redirect(url_for("dashboard"))
+# ******************************************************
+
 @app.route("/registrar_vehiculo", methods=["POST"])
 def registrar_vehiculo():
     vehiculos.append({
@@ -112,11 +121,10 @@ def generar_planeador():
     pendientes = datos_motos_original.copy()
     output = io.BytesIO()
     
-    # Agrupar vehículos por ciudad principal única para procesar flotas juntas
+    # Agrupar vehículos por sus ciudades permitidas (como tupla) para procesar flotas juntas
     vehiculos_por_ciudad = defaultdict(list)
     for v in vehiculos:
         if v["ciudades"]:
-            # Usamos una tupla de ciudades como clave para manejar multi-ciudad como un grupo único
             ciudad_clave = tuple(sorted([c.strip().upper() for c in v["ciudades"]]))
             vehiculos_por_ciudad[ciudad_clave].append(v)
     
@@ -124,57 +132,42 @@ def generar_planeador():
         
         for ciudad_clave, flota_vehiculos in vehiculos_por_ciudad.items():
             
-            # Procesamos CADA vehículo de la flota SECUENCIALMENTE para aplicar la regla del 95%
             for v in flota_vehiculos:
                 capacidad_camion = v["cantidad_motos"]
                 
-                # Filtrar inventario que puede ser llevado por ESTE vehículo
                 mask_vehiculo = pendientes["Descr EXXIT"].str.upper().isin(v["ciudades"])
                 posibles = pendientes[mask_vehiculo].copy()
                 
                 if posibles.empty: continue
 
-                # Ordenar por fecha de reserva (ascendente/más antigua primero)
                 if 'Reserva' in posibles.columns:
                     posibles = posibles.sort_values(by=['Reserva', 'Direccion 1'], ascending=[True, True])
                 
-                # Agrupar por Direccion 1 para mantener indivisibilidad
-                # Usamos el índice de 'posibles' como ID para rastrear las filas originales
                 grupos_direccion = posibles.groupby("Direccion 1").agg(
                     peso_espacio=('peso_espacio', 'sum'),
-                    indices_originales=('peso_espacio', lambda x: list(x.index)) # Guardamos los índices originales
+                    indices_originales=('peso_espacio', lambda x: list(x.index))
                 ).reset_index()
                 
                 items_para_mochila = [{"id": i, "peso": row["peso_espacio"]} for i, row in grupos_direccion.iterrows()]
                 
-                # Resolver Mochila (obtenemos índices del grupo y peso total logrado)
                 indices_grupo_elegidos, peso_logrado = _knapsack_max_peso_min_items(items_para_mochila, capacidad_camion)
                 
-                # *** APLICAR REGLA DEL 95% ***
                 min_peso_requerido = capacidad_camion * 0.95
                 
                 if peso_logrado >= min_peso_requerido:
-                    # Si cumple el 95%, asignamos
                     indices_finales_df = []
                     for idx_grupo in indices_grupo_elegidos:
-                        # Recuperamos los índices originales del DF 'posibles' que componen este grupo/dirección
                         indices_finales_df.extend(grupos_direccion.iloc[idx_grupo]["indices_originales"])
                     
-                    # Extraer las filas correspondientes de 'pendientes' usando los índices originales
                     asignacion_df = pendientes.loc[indices_finales_df].copy()
                     
                     if not asignacion_df.empty:
                         nombre_hoja = _excel_safe_sheet_name(v["placa"])
-                        # Asegura que la hoja de Excel muestre el orden correcto por fecha/dirección
                         asignacion_df = asignacion_df.sort_values(by=['Reserva', 'Direccion 1'], ascending=[True, True])
                         asignacion_df.to_excel(writer, sheet_name=nombre_hoja, index=False)
                         
-                        # ELIMINAR del inventario pendiente global
                         pendientes = pendientes.drop(asignacion_df.index)
-                
-                # Si no cumple el 95%, este camión se salta y sus posibles motos quedan en 'pendientes' para la hoja final.
 
-        # Hoja final con lo que NO cupo en NINGÚN camión o no cumplió el 95%
         if not pendientes.empty:
             if 'Reserva' in pendientes.columns:
                  pendientes = pendientes.sort_values(by=['Reserva', 'Direccion 1'], ascending=[True, True])
@@ -184,7 +177,7 @@ def generar_planeador():
     return send_file(
         output, 
         as_attachment=True, 
-        download_name="Planeador_Despacho_95pct_Minimo.xlsx",
+        download_name="Planeador_Despacho_Final.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
