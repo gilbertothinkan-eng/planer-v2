@@ -188,9 +188,9 @@ def generar_planeador():
                 if posibles.empty: continue
 
                 if 'Reserva' in posibles.columns:
-                    posibles = posibles.sort_values(by=['Reserva', 'Direccion 1'], ascending=[True, True])
+                    posibles = posibles.sort_values(by=['Reserva', 'Dirección 1'], ascending=[True, True])
                 
-                grupos_direccion = posibles.groupby("Direccion 1").agg(
+                grupos_direccion = posibles.groupby("Dirección 1").agg(
                     peso_espacio=('peso_espacio', 'sum'),
                     indices_originales=('peso_espacio', lambda x: list(x.index))
                 ).reset_index()
@@ -210,14 +210,14 @@ def generar_planeador():
                     
                     if not asignacion_df.empty:
                         nombre_hoja = _excel_safe_sheet_name(v["placa"])
-                        asignacion_df = asignacion_df.sort_values(by=['Reserva', 'Direccion 1'], ascending=[True, True])
+                        asignacion_df = asignacion_df.sort_values(by=['Reserva', 'Dirección 1'], ascending=[True, True])
                         asignacion_df.to_excel(writer, sheet_name=nombre_hoja, index=False)
                         
                         pendientes = pendientes.drop(asignacion_df.index)
 
         if not pendientes.empty:
             if 'Reserva' in pendientes.columns:
-                 pendientes = pendientes.sort_values(by=['Reserva', 'Direccion 1'], ascending=[True, True])
+                 pendientes = pendientes.sort_values(by=['Reserva', 'Dirección 1'], ascending=[True, True])
             pendientes.to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
 
     output.seek(0)
