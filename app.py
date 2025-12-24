@@ -3,7 +3,7 @@ import pandas as pd
 from collections import Counter
 import os
 import io
-from typing import Dict, List
+from typing import Dict, List, Optional, Set, Tuple
 
 app = Flask(__name__)
 app.secret_key = "gilberto_clave_super_secreta"
@@ -18,20 +18,41 @@ vehiculos: List[dict] = []
 conteo_ciudades: Dict[str, int] = {}
 datos_motos_original = pd.DataFrame()
 
-# Tu HTML (dashboard.html) espera estas variables (aunque no uses selección ahora)
+# Referencias especiales por ciudad (para el dashboard + filtro)
 referencias_seleccionadas: Dict[str, List[dict]] = {}
 
 # Equivalencias
 equivalencias = {
-    "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
-    "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2, "CLASSIC 350": 2,
-    "CONTINENTAL GT 650": 2, "GBR 450": 2, "HIMALAYAN": 2,
-    "INTERCEPTOR INT 650": 2, "METEOR 350": 2, "METEOR 350 STELLAR": 2,
-    "SCRAM 411": 2, "SCRAM 411 SPIRIT": 2, "SHOTGUN 650": 2,
-    "SUPER METEOR 650": 2, "AK110NV EIII": 1, "AK125CR4 EIII": 1,
-    "AK125DYN PRO+": 1, "AK125FLEX EIII": 1, "AK125NKD EIII": 1,
-    "AK125T-4": 1, "AK125TTR EIII": 1, "AK150CR4": 1,
-    "AK200DS+": 1, "AK200TTR EIII": 1, "DYNAMIC RX": 1,
+    "AK200ZW": 6,
+    "ATUL RIK": 12,
+    "AK250CR4 EFI": 2,
+    "HIMALAYAN 452": 2,
+    "HNTR 350": 2,
+    "300AC": 2,
+    "300DS": 2,
+    "300RALLY": 2,
+    "CLASSIC 350": 2,
+    "CONTINENTAL GT 650": 2,
+    "GBR 450": 2,
+    "HIMALAYAN": 2,
+    "INTERCEPTOR INT 650": 2,
+    "METEOR 350": 2,
+    "METEOR 350 STELLAR": 2,
+    "SCRAM 411": 2,
+    "SCRAM 411 SPIRIT": 2,
+    "SHOTGUN 650": 2,
+    "SUPER METEOR 650": 2,
+    "AK110NV EIII": 1,
+    "AK125CR4 EIII": 1,
+    "AK125DYN PRO+": 1,
+    "AK125FLEX EIII": 1,
+    "AK125NKD EIII": 1,
+    "AK125T-4": 1,
+    "AK125TTR EIII": 1,
+    "AK150CR4": 1,
+    "AK200DS+": 1,
+    "AK200TTR EIII": 1,
+    "DYNAMIC RX": 1,
 }
 
 # Columnas EXACTAS del detalle (tu formato definido)
@@ -65,31 +86,99 @@ def _excel_safe_sheet_name(name: str) -> str:
 
 def _normalizar_columnas(df: pd.DataFrame) -> pd.DataFrame:
     """
-    NO cambia tu lógica.
-    Solo asegura que existan nombres esperados para evitar KeyError:
-    - Direccion 1 -> Dirección 1 (si viene sin tilde)
+    Normaliza nombres de columnas sin cambiar lógica:
+    - 'Direccion 1' -> 'Dirección 1'
     """
-    cols = list(df.columns)
-
-    # Dirección 1: acepta con/sin tilde
-    if "Dirección 1" not in cols and "Direccion 1" in cols:
+    if "Dirección 1" not in df.columns and "Direccion 1" in df.columns:
         df = df.rename(columns={"Direccion 1": "Dirección 1"})
-
     return df
 
 def _asegurar_columnas_detalle(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Para que el Excel SIEMPRE salga con tu estructura fija,
-    si falta alguna columna en el DF, la crea vacía.
+    Para que el Excel SIEMPRE salga con tu estructura fija:
+    si falta alguna columna, la crea vacía.
     """
     for c in COLUMNAS_DETALLE:
         if c not in df.columns:
             df[c] = ""
     return df
 
-def _knapsack_max_peso_min_items(items: List[dict], capacidad: int):
+def encontrar_referencia_especial(ciudad: str, cod_int) -> Optional[dict]:
     """
-    MISMA lógica: maximiza peso <= capacidad y desempata con menos items (direcciones)
+    Retorna el dict de referencia especial para (ciudad, cod_int) si existe.
+    """
+    ciudad_u = str(ciudad).strip().upper()
+    cod_u = str(cod_int).strip().upper()
+    if ciudad_u not in referencias_seleccionadas:
+        return None
+    for r in referencias_seleccionadas[ciudad_u]:
+        if str(r.get("cod_int", "")).strip().upper() == cod_u:
+            return r
+    return None
+
+def reconstruir_referencias_especiales(df: pd.DataFrame) -> Dict[str, List[dict]]:
+    """
+    Construye el acordeón:
+    - por ciudad
+    - COD INT con equivalencia > 1
+    - cantidad, equivalencia, total
+    - descripcion de ejemplo (si existe columna 'Descripcion')
+    """
+    refs: Dict[str, List[dict]] = {}
+
+    if "Descr EXXIT" not in df.columns or "COD INT" not in df.columns:
+        return refs
+
+    df2 = df.copy()
+    df2["CIUDAD_NORM"] = df2["Descr EXXIT"].astype(str).str.upper()
+    df2["COD_INT_NORM"] = df2["COD INT"].astype(str).str.upper().str.strip()
+
+    reporte = (
+        df2.groupby(["CIUDAD_NORM", "COD_INT_NORM"])
+           .size()
+           .reset_index(name="Cantidad")
+    )
+
+    for _, row in reporte.iterrows():
+        ciudad = row["CIUDAD_NORM"]
+        cod_int_norm = row["COD_INT_NORM"]
+        cant = int(row["Cantidad"])
+        eq = get_equivalencia(cod_int_norm)
+        if eq <= 1:
+            continue
+
+        total = cant * eq
+        refs.setdefault(ciudad, [])
+
+        # Descripción representativa si existe "Descripcion"
+        descripcion_ejemplo = str(cod_int_norm)
+        if "Descripcion" in df2.columns:
+            sub = df2[(df2["CIUDAD_NORM"] == ciudad) & (df2["COD_INT_NORM"] == cod_int_norm)]
+            if not sub.empty:
+                try:
+                    descripcion_ejemplo = str(sub["Descripcion"].iloc[0])
+                except Exception:
+                    descripcion_ejemplo = str(cod_int_norm)
+
+        refs[ciudad].append({
+            "cod_int": cod_int_norm,
+            "descripcion": descripcion_ejemplo,
+            "cantidad": cant,
+            "equivalencia": eq,
+            "total": total,
+            "usar": True
+        })
+
+    # Ordenar por ciudad y por total desc (opcional, visual)
+    for ciudad in refs:
+        refs[ciudad] = sorted(refs[ciudad], key=lambda x: (-int(x["total"]), str(x["cod_int"])))
+    refs = dict(sorted(refs.items(), key=lambda x: x[0]))
+
+    return refs
+
+def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[List[int], int]:
+    """
+    MISMA lógica: maximiza peso <= capacidad y desempata con menos direcciones.
     Retorna (indices_seleccionados, peso_total_logrado)
     """
     dp = [(0, 0)] * (capacidad + 1)  # (peso_total, -num_items)
@@ -133,18 +222,16 @@ def dashboard():
     if "usuario" not in session:
         return redirect(url_for("login"))
 
-    mensaje = session.pop("mensaje", None)
     return render_template(
         "dashboard.html",
         ciudades=conteo_ciudades,
         referencias=referencias_seleccionadas,
         vehiculos=vehiculos,
-        mensaje=mensaje
     )
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    global conteo_ciudades, datos_motos_original
+    global conteo_ciudades, datos_motos_original, referencias_seleccionadas
 
     file = request.files.get("file")
     if not file:
@@ -159,7 +246,7 @@ def upload():
 
     df = _normalizar_columnas(df)
 
-    # Validaciones mínimas (sin cambiar lógica)
+    # Validaciones mínimas
     requeridas = ["Estado Satf", "Descr EXXIT", "COD INT"]
     faltantes = [c for c in requeridas if c not in df.columns]
     if faltantes:
@@ -173,16 +260,35 @@ def upload():
     if "Reserva" in df.columns:
         df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     else:
-        # Si no existe, crea columna para que el sort no falle
         df["Reserva"] = pd.NaT
 
     # Peso por equivalencia
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
 
     datos_motos_original = df
-    conteo_ciudades = df["Descr EXXIT"].astype(str).str.upper().value_counts().to_dict()
-    session["mensaje"] = "✅ Archivo cargado correctamente."
 
+    # Conteo ciudades
+    conteo_ciudades = df["Descr EXXIT"].astype(str).str.upper().value_counts().to_dict()
+
+    # 🔥 AQUÍ ESTABA EL “HUECO”: reconstruir referencias especiales para que se muestren
+    referencias_seleccionadas = reconstruir_referencias_especiales(df)
+
+    session["mensaje"] = "✅ Archivo cargado correctamente."
+    return redirect(url_for("dashboard"))
+
+@app.route("/actualizar_referencias", methods=["POST"])
+def actualizar_referencias():
+    """
+    Guarda 'usar' True/False según los checkboxes enviados por el dashboard.
+    """
+    global referencias_seleccionadas
+
+    for ciudad, refs in referencias_seleccionadas.items():
+        for r in refs:
+            key = f"{ciudad}_{r['cod_int']}"
+            r["usar"] = key in request.form  # si viene en el POST, queda marcado
+
+    session["mensaje"] = "✅ Selección guardada."
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
@@ -215,14 +321,6 @@ def registrar_vehiculo():
     session["mensaje"] = "✅ Vehículo registrado."
     return redirect(url_for("dashboard"))
 
-# IMPORTANTE: esta ruta es la que tu dashboard.html está llamando.
-# No toca algoritmo. Solo evita que Flask reviente con BuildError.
-@app.route("/actualizar_referencias", methods=["POST"])
-def actualizar_referencias():
-    # Si luego vuelves a usar selección de referencias, aquí va esa lógica.
-    session["mensaje"] = "✅ Selección guardada."
-    return redirect(url_for("dashboard"))
-
 @app.route("/generar_planeador", methods=["POST"])
 def generar_planeador():
     global datos_motos_original
@@ -237,7 +335,6 @@ def generar_planeador():
 
     df = _normalizar_columnas(datos_motos_original.copy())
 
-    # Asegurar que existe Dirección 1 para tu regla indivisible
     if "Dirección 1" not in df.columns:
         session["mensaje"] = "⚠️ Falta la columna 'Dirección 1' (o 'Direccion 1') en el Excel."
         return redirect(url_for("dashboard"))
@@ -250,34 +347,62 @@ def generar_planeador():
         for v in vehiculos:
             capacidad_camion = int(v["cantidad_motos"])
 
-            # Filtrar inventario del vehículo por ciudades permitidas
+            # Filtrar por ciudades del vehículo
             mask_veh = pendientes["Descr EXXIT"].astype(str).str.upper().isin(v["ciudades"])
             posibles = pendientes[mask_veh].copy()
             if posibles.empty:
                 continue
 
-            # Orden por Reserva y Dirección 1 (más antiguo primero)
+            # Orden por Reserva y Dirección 1 (más antigua primero)
             posibles = posibles.sort_values(by=["Reserva", "Dirección 1"], ascending=[True, True])
 
-            # Agrupar por Dirección 1: indivisible
+            # Agrupar por Dirección 1 (indivisible)
             grupos = posibles.groupby("Dirección 1").agg(
                 peso_espacio=("peso_espacio", "sum"),
                 indices_originales=("peso_espacio", lambda x: list(x.index))
             ).reset_index()
 
-            items = [{"id": i, "peso": int(row["peso_espacio"])} for i, row in grupos.iterrows()]
+            # ✅ FILTRO DE REFERENCIAS ESPECIALES (ya existía en tu versión funcional):
+            # Si el grupo contiene alguna fila con COD INT especial desmarcado, se excluye el grupo.
+            grupos_validos = []
+            for i, row in grupos.iterrows():
+                idxs = row["indices_originales"]
+                sub = posibles.loc[idxs]
 
-            # Knapsack (MISMA lógica)
+                permitido = True
+                for _, fila in sub.iterrows():
+                    cod_int = fila.get("COD INT", "")
+                    eq = get_equivalencia(cod_int)
+                    if eq > 1:
+                        ciudad_fila = str(fila.get("Descr EXXIT", "")).upper()
+                        ref = encontrar_referencia_especial(ciudad_fila, str(cod_int).upper())
+                        if ref is not None and not bool(ref.get("usar", False)):
+                            permitido = False
+                            break
+
+                if permitido:
+                    grupos_validos.append((i, row["peso_espacio"], row["indices_originales"], row["Dirección 1"]))
+
+            if not grupos_validos:
+                continue
+
+            # Armamos items para knapsack solo con grupos válidos
+            items = [{"id": k[0], "peso": int(k[1])} for k in grupos_validos]
+
             idx_grupos, peso_logrado = _knapsack_max_peso_min_items(items, capacidad_camion)
 
-            # Regla 95% (MISMA lógica)
+            # Regla 95% (MISMA)
             if peso_logrado < capacidad_camion * 0.95:
                 continue
 
             # Recuperar índices originales seleccionados
             indices_finales = []
-            for i in idx_grupos:
-                indices_finales.extend(grupos.iloc[i]["indices_originales"])
+            for gid in idx_grupos:
+                # buscar el tuple correspondiente a gid
+                for (i, _peso, idxs, _dir) in grupos_validos:
+                    if i == gid:
+                        indices_finales.extend(idxs)
+                        break
 
             asignado = pendientes.loc[indices_finales].copy()
             asignado = asignado.sort_values(by=["Reserva", "Dirección 1"], ascending=[True, True])
@@ -297,14 +422,13 @@ def generar_planeador():
 
             resumen.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
 
-            # Asegurar columnas y exportar detalle en el orden fijo (fila 3)
             asignado = _asegurar_columnas_detalle(asignado)
             asignado[COLUMNAS_DETALLE].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
 
             # Eliminar del inventario pendiente
             pendientes = pendientes.drop(asignado.index)
 
-        # Hoja final NO_ASIGNADAS con la MISMA estructura de detalle
+        # Hoja final NO_ASIGNADAS con la MISMA estructura
         if not pendientes.empty:
             pendientes = pendientes.sort_values(by=["Reserva", "Dirección 1"], ascending=[True, True])
             pendientes = _asegurar_columnas_detalle(pendientes)
