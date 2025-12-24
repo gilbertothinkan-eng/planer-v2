@@ -16,7 +16,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 vehiculos: List[dict] = []
 conteo_ciudades: Dict[str, int] = {}
 datos_motos_original = pd.DataFrame()
-# Nota: referencias_seleccionadas ya no se usa activamente en la lógica final de planeador
+# Variable para el panel de "Referencias especiales por ciudad"
 referencias_seleccionadas: Dict[str, List[dict]] = {} 
 
 equivalencias = {
@@ -24,7 +24,7 @@ equivalencias = {
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2, "CLASSIC 350": 2,
     "CONTINENTAL GT 650": 2, "GBR 450": 2, "HIMALAYAN": 2, "INTERCEPTOR INT 650": 2,
     "METEOR 350": 2, "METEOR 350 STELLAR": 2, "SCRAM 411": 2, "SCRAM 411 SPIRIT": 2,
-    "SHOTGUN 650": 2, "SUPER METEOR 650": 2, "AK110NV EIII": 1, "AK125CR4 EIII": 1,
+    "SHOTGUN 650": 650, "SUPER METEOR 650": 2, "AK110NV EIII": 1, "AK125CR4 EIII": 1,
     "AK125DYN PRO+": 1, "AK125FLEX EIII": 1, "AK125NKD EIII": 1, "AK125T-4": 1,
     "AK125TTR EIII": 1, "AK150CR4": 1, "AK200DS+": 1, "AK200TTR EIII": 1, "DYNAMIC RX": 1,
 }
@@ -47,7 +47,7 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
     for i, item in enumerate(items):
         w_i = item['peso']
         for w in range(capacidad, w_i - 1, -1):
-            cand_val = (dp[w - w_i][0] + w_i, dp[w - w_i][1] - 1) # Asegurar acceso a tupla
+            cand_val = (dp[w - w_i][0] + w_i, dp[w - w_i][1] - 1)
             if cand_val > dp[w]:
                 dp[w] = cand_val
                 item_seleccionado[w] = item_seleccionado[w - w_i] + [item['id']]
@@ -59,7 +59,7 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
             mejor_val = dp[w]
             mejor_w = w
             
-    return item_seleccionado[mejor_w], dp[mejor_w][0] # Retorna indices y peso total logrado
+    return item_seleccionado[mejor_w], dp[mejor_w][0]
 
 # --- RUTAS FLASK ---
 @app.route("/", methods=["GET", "POST"])
@@ -77,40 +77,87 @@ def dashboard():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    global conteo_ciudades, datos_motos_original
+    global conteo_ciudades, datos_motos_original, referencias_seleccionadas
     file = request.files.get("file")
     if file:
         df = pd.read_excel(file)
+        # Filtro Estado 40
         df = df[df["Estado Satf"] == 40].copy()
+        
+        # Conversión de fecha
         if 'Reserva' in df.columns:
             df['Reserva'] = pd.to_datetime(df['Reserva'], errors='coerce')
+            
         df['peso_espacio'] = df['COD INT'].apply(get_equivalencia)
         datos_motos_original = df
         conteo_ciudades = df["Descr EXXIT"].value_counts().to_dict()
+
+        # *** RECONSTRUCCIÓN DEL REPORTE DE REFERENCIAS ESPECIALES PARA EL DASHBOARD ***
+        referencias_seleccionadas = {}
+        if "COD INT" in df.columns and "Descr EXXIT" in df.columns:
+            reporte = (
+                df.groupby([df["Descr EXXIT"].astype(str).str.upper(), "COD INT"])
+                .size()
+                .reset_index(name="Cantidad")
+            )
+            for _, row in reporte.iterrows():
+                ciudad = row["Descr EXXIT"]
+                cod_int = row["COD INT"]
+                eq = get_equivalencia(cod_int)
+                if eq <= 1: continue # Solo referencias "especiales" (eq > 1)
+
+                cant = int(row["Cantidad"])
+                total = cant * eq
+                referencias_seleccionadas.setdefault(ciudad, [])
+                
+                # descripción representativa
+                mask = (
+                    (df["Descr EXXIT"].astype(str).str.upper() == ciudad)
+                    & (df["COD INT"] == cod_int)
+                )
+                descripcion_ejemplo = (
+                    df.loc[mask, "Descripcion"].iloc[0]
+                    if "Descripcion" in df.columns and not df.loc[mask].empty
+                    else str(cod_int)
+                )
+
+                referencias_seleccionadas[ciudad].append(
+                    {
+                        "cod_int": cod_int,
+                        "descripcion": descripcion_ejemplo,
+                        "cantidad": cant,
+                        "equivalencia": eq,
+                        "total": total,
+                        "usar": True, # Estado por defecto
+                    }
+                )
+        # *****************************************************************************
+
+    session["mensaje"] = "✅ Archivo cargado correctamente"
     return redirect(url_for("dashboard"))
 
-# *** ESTA ES LA FUNCIÓN QUE FALTABA Y CAUSABA EL ERROR ***
 @app.route("/actualizar_referencias", methods=["POST"])
 def actualizar_referencias():
-    # Nota: Esta función es necesaria para que el HTML funcione, aunque la lógica final del planeador no la usa.
     global referencias_seleccionadas
     for ciudad, refs in referencias_seleccionadas.items():
         for r in refs:
+            # Revisa si el checkbox estaba marcado en el formulario POST
             key = f"{ciudad}_{r['cod_int']}"
-            r["usar"] = key in request.form
+            r["usar"] = key in request.form 
     session["mensaje"] = "✅ Selección guardada"
     return redirect(url_for("dashboard"))
-# ******************************************************
 
 @app.route("/registrar_vehiculo", methods=["POST"])
 def registrar_vehiculo():
-    vehiculos.append({
+    data = {
         "transportadora": request.form["transportadora"],
         "conductor": request.form["conductor"],
         "placa": request.form["placa"],
         "cantidad_motos": int(request.form["cantidad_motos"]),
-        "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",") if c.strip()]
-    })
+        "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",") if c.strip()],
+    }
+    vehiculos.append(data)
+    session["mensaje"] = "✅ Vehículo registrado"
     return redirect(url_for("dashboard"))
 
 
