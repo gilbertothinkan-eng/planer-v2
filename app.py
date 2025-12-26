@@ -124,6 +124,7 @@ def actualizar_referencias():
     for ciudad, refs in referencias_seleccionadas.items():
         for r in refs:
             r["usar"] = f"{ciudad}_{r['cod_int']}" in request.form
+    session["mensaje"] = "✅ Selección de referencias guardada"
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
@@ -135,6 +136,7 @@ def registrar_vehiculo():
         "cantidad_motos": int(request.form["cantidad_motos"]),
         "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",")]
     })
+    session["mensaje"] = "✅ Vehículo registrado correctamente"
     return redirect(url_for("dashboard"))
 
 @app.route("/generar_planeador", methods=["POST"])
