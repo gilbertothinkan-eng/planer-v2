@@ -77,8 +77,11 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
 def login():
     if request.method == "POST":
         if request.form["usuario"] == "admin" and request.form["contrasena"] == "1234":
+            session["mensaje"] = "✅ Ingreso exitoso, Bienvenido a Planer Logistic Motos By Gilberto Thinkan®"
             session["usuario"] = "admin"
             return redirect(url_for("dashboard"))
+        else:
+            session["mensaje"] = "❌ Usuario o contraseña incorrectos"
     return render_template("login.html")
 
 @app.route("/dashboard")
