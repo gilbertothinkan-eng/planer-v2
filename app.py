@@ -81,7 +81,10 @@ def login():
             session["usuario"] = "admin"
             return redirect(url_for("dashboard"))
         else:
-            session["mensaje"] = "❌ Usuario o contraseña incorrectos"
+            return render_template(
+                "login.html",
+                error="❌ Usuario o contraseña incorrectos"
+            )
     return render_template("login.html")
 
 @app.route("/dashboard")
