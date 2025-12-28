@@ -99,7 +99,7 @@
   }
 </style>
     {% if session.mensaje %}
-    <div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px;">
+    <div id="mensaje-box" style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px;">
       {{ session.mensaje }}
     </div>
     {% set _ = session.pop('mensaje', None) %}
@@ -213,14 +213,23 @@
       });
         <!-- aquí ya termina todo tu contenido -->
 
-    <script>
+<script>
+  // Esperar a que la página cargue completamente
+  document.addEventListener("DOMContentLoaded", function() {
+    const box = document.getElementById("mensaje-box");
+    if (box) {
+      // 1. Esperar 3 segundos visible
       setTimeout(() => {
-        const box = document.getElementById("mensaje-box");
-        if (box) box.style.display = "none";
-      }, 4000);
-    </script>
-</body>
-</html>
-
+        // 2. Iniciar desvanecimiento suave
+        box.style.opacity = "0";
+        
+        // 3. Quitarlo totalmente del espacio después de la animación
+        setTimeout(() => {
+          box.style.display = "none";
+        }, 600);
+      }, 3000); 
+    }
+  });
+</script>
 </body>
 </html>
