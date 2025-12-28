@@ -211,36 +211,39 @@
           });
         });
       });
-        <!-- aquí ya termina todo tu contenido -->
 
 <script>
-      document.addEventListener("DOMContentLoaded", function() {
-        // 1. Lógica del acordeón (Mantenla aquí para que ambos funcionen)
-        const buttons = document.querySelectorAll(".accordion-button");
-        buttons.forEach(btn => {
-          btn.addEventListener("click", () => {
-            const content = btn.nextElementSibling;
-            const isActive = btn.classList.contains("active");
-            document.querySelectorAll(".accordion-button").forEach(b => b.classList.remove("active"));
-            document.querySelectorAll(".accordion-content").forEach(c => c.classList.remove("show"));
-            if (!isActive) {
-              btn.classList.add("active");
-              content.classList.add("show");
-            }
-          });
-        });
+document.addEventListener("DOMContentLoaded", function () {
 
-        // 2. Lógica del Mensaje (Esto es lo que ya tienes)
-        const box = document.getElementById("mensaje-box");
-        if (box) {
-          setTimeout(() => {
-            box.style.opacity = "0"; 
-            setTimeout(() => {
-              box.style.display = "none";
-            }, 600);
-          }, 3000); 
-        }
-      });
-    </script>
+  // --- Acordeón ---
+  const buttons = document.querySelectorAll(".accordion-button");
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const content = btn.nextElementSibling;
+      const isActive = btn.classList.contains("active");
+
+      document.querySelectorAll(".accordion-button").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".accordion-content").forEach(c => c.classList.remove("show"));
+
+      if (!isActive) {
+        btn.classList.add("active");
+        content.classList.add("show");
+      }
+    });
+  });
+
+  // --- Mensaje auto-cierre ---
+  const box = document.getElementById("mensaje-box");
+  if (box) {
+    setTimeout(() => {
+      box.style.opacity = "0";
+      setTimeout(() => {
+        box.style.display = "none";
+      }, 600);
+    }, 3000);
+  }
+
+});
+</script>
 </body>
 </html>
