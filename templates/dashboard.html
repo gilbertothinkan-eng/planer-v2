@@ -237,9 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (box) {
     setTimeout(() => {
       box.style.opacity = "0";
-      setTimeout(() => {
-        box.style.display = "none";
-      }, 600);
+      setTimeout(() => box.remove(), 600);
     }, 3000);
   }
 
