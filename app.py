@@ -76,16 +76,19 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        if request.form["usuario"] == "admin" and request.form["contrasena"] == "1234":
-            session["mensaje"] = "✅ Ingreso exitoso, Bienvenido a Planer Logistic Motos By Gilberto Thinkan®"
+        # Usamos .get() para evitar errores si los campos faltan
+        user = request.form.get("usuario")
+        password = request.form.get("contrasena")
+        
+        if user == "admin" and password == "1234":
             session["usuario"] = "admin"
             return redirect(url_for("dashboard"))
         else:
-            return render_template(
-                "login.html",
-                error="❌ Usuario o contraseña incorrectos"
-            )
-   return render_template("login.html")
+            # IMPORTANTE: Aquí se recarga la página enviando la variable 'error'
+            return render_template("login.html", error="❌ Usuario o contraseña incorrectos")
+    
+    # Este return DEBE estar alineado con el primer 'if', no dentro de él
+    return render_template("login.html")
 
 @app.route("/dashboard")
 def dashboard():
