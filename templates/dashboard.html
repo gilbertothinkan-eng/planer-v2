@@ -99,7 +99,7 @@
   }
 </style>
     {% if session.mensaje %}
-    <div id="mensaje-box" style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px;">
+    <div id="mensaje-box" style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px; transition: opacity 0.6s ease;">
       {{ session.mensaje }}
     </div>
     {% set _ = session.pop('mensaje', None) %}
