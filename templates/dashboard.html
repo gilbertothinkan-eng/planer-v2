@@ -99,7 +99,7 @@
   }
 </style>
     {% if session.mensaje %}
-    <div id="mensaje-box" style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px; transition: opacity 0.6s ease;">
+    <div id="mensaje-box" style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px; transition: opacity 0.6s ease; opacity: 1;">
       {{ session.mensaje }}
     </div>
     {% set _ = session.pop('mensaje', None) %}
@@ -214,22 +214,33 @@
         <!-- aquí ya termina todo tu contenido -->
 
 <script>
-  // Esperar a que la página cargue completamente
-  document.addEventListener("DOMContentLoaded", function() {
-    const box = document.getElementById("mensaje-box");
-    if (box) {
-      // 1. Esperar 3 segundos visible
-      setTimeout(() => {
-        // 2. Iniciar desvanecimiento suave
-        box.style.opacity = "0";
-        
-        // 3. Quitarlo totalmente del espacio después de la animación
-        setTimeout(() => {
-          box.style.display = "none";
-        }, 600);
-      }, 3000); 
-    }
-  });
-</script>
+      document.addEventListener("DOMContentLoaded", function() {
+        // 1. Lógica del acordeón (Mantenla aquí para que ambos funcionen)
+        const buttons = document.querySelectorAll(".accordion-button");
+        buttons.forEach(btn => {
+          btn.addEventListener("click", () => {
+            const content = btn.nextElementSibling;
+            const isActive = btn.classList.contains("active");
+            document.querySelectorAll(".accordion-button").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".accordion-content").forEach(c => c.classList.remove("show"));
+            if (!isActive) {
+              btn.classList.add("active");
+              content.classList.add("show");
+            }
+          });
+        });
+
+        // 2. Lógica del Mensaje (Esto es lo que ya tienes)
+        const box = document.getElementById("mensaje-box");
+        if (box) {
+          setTimeout(() => {
+            box.style.opacity = "0"; 
+            setTimeout(() => {
+              box.style.display = "none";
+            }, 600);
+          }, 3000); 
+        }
+      });
+    </script>
 </body>
 </html>
