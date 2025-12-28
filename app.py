@@ -85,7 +85,7 @@ def login():
                 "login.html",
                 error="❌ Usuario o contraseña incorrectos"
             )
-    return render_template("login.html")
+   return render_template("login.html")
 
 @app.route("/dashboard")
 def dashboard():
