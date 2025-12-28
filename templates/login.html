@@ -12,8 +12,7 @@
       <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="logo">
       <h2>Planner Logistic Motos by Gilberto Thinkan</h2>
       {% if error %}
-        <p style="color:red;">{{ session.get("mensaje") }}</p>
-        {% set _ = session.pop("mensaje") %}
+        <p style="color:red;">{{ error }}</p>
       {% endif %}
       <input type="text" name="usuario" placeholder="Usuario" required>
       <input type="password" name="contrasena" placeholder="Contraseña" required>
