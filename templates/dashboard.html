@@ -40,7 +40,6 @@
       .descripcion { font-size: 0.9em; color: #ccc; margin-top: 4px; }
       .stats { font-size: 0.85em; color: #999; }
 
-      /* --- Estilos del acordeón --- */
       .accordion-item {
         margin-bottom: 8px;
         border: 1px solid #333;
@@ -54,13 +53,8 @@
         color: #fff;
         padding: 10px 12px;
         border: none;
-        outline: none;
         font-weight: bold;
         cursor: pointer;
-        transition: background 0.2s;
-      }
-      .accordion-button:hover {
-        background: #2a2a2a;
       }
       .accordion-button.active {
         background: #00695c;
@@ -75,164 +69,104 @@
       }
     </style>
 </head>
+
 <body>
-    <div class="header-title">
+
+<div class="header-title" style="text-align:center; margin-bottom:20px;">
   <h1>Planeador de Despacho - AKT Motos</h1>
-  <h3 class="subtitle">By Gilberto Thinkan</h3>
+  <h3 style="color:#00e676;">By Gilberto Thinkan</h3>
 </div>
-<style>
-  .header-title {
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  .header-title h1 {
-    color: #81d4fa;
-    font-size: 2rem;
-    margin-bottom: 4px;
-  }
-  .header-title .subtitle {
-    color: #00e676;
-    font-size: 1rem;
-    font-weight: normal;
-    letter-spacing: 1px;
-    opacity: 0.9;
-  }
-</style>
-    {% if session.mensaje %}
-    <div id="mensaje-box" style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 4px; transition: opacity 0.6s ease; opacity: 1;">
-      {{ session.mensaje }}
-    </div>
-    {% set _ = session.pop('mensaje', None) %}
+
+{% if session.mensaje %}
+<div id="mensaje-box" style="background:#d4edda;color:#155724;padding:10px;margin:10px 0;border-radius:4px;transition:opacity .6s;">
+  {{ session.mensaje }}
+</div>
+{% set _ = session.pop('mensaje', None) %}
+{% endif %}
+
+<div class="panel">
+  <h2>Subir archivo Excel (Informe de Reserva)</h2>
+  <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".xlsx,.xls" required>
+    <button type="submit">Cargar</button>
+  </form>
+</div>
+
+<div class="cols">
+  <div class="panel">
+    <h2>Conteo por ciudades (Estado Satf = 40)</h2>
+    {% if ciudades %}
+      <ul>
+        {% for ciudad, cantidad in ciudades.items() %}
+          <li><strong>{{ ciudad }}</strong>: {{ cantidad }} motos</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Sin datos cargados.</p>
     {% endif %}
+  </div>
 
-    <!-- Subir archivo Excel -->
-    <div class="panel">
-      <h2>Subir archivo Excel (Informe de Reserva)</h2>
-      <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
-          <input type="file" name="file" accept=".xlsx,.xls" required>
-          <button type="submit">Cargar</button>
-      </form>
-    </div>
+  <div class="panel">
+    <h2>Referencias especiales por ciudad (COD INT)</h2>
 
-    <div class="cols">
-      <!-- Conteo por ciudad -->
-      <div class="panel">
-        <h2>Conteo por ciudades (Estado Satf = 40)</h2>
-        {% if ciudades %}
-          <ul>
-            {% for ciudad, cantidad in ciudades.items() %}
-              <li><strong>{{ ciudad }}</strong>: {{ cantidad }} motos</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p>Sin datos cargados.</p>
-        {% endif %}
-      </div>
-
-      <!-- Referencias especiales por ciudad -->
-      <div class="panel">
-        <h2>Referencias especiales por ciudad (COD INT)</h2>
-        <p style="background: #2d5aa0; padding: 8px; border-radius: 4px; font-size: 0.9em;">
-          ⚠️ <strong>IMPORTANTE:</strong> Después de marcar/desmarcar, presiona <strong>"GUARDAR SELECCIÓN"</strong> antes de generar el planeador.
-        </p>
-
-        <form action="{{ url_for('actualizar_referencias') }}" method="POST">
-          {% if referencias %}
-            <div class="accordion">
-              {% for ciudad, refs in referencias.items() %}
-                <div class="accordion-item">
-                  <button type="button" class="accordion-button">
-                    {{ ciudad }} ({{ refs|length }} referencias)
-                  </button>
-                  <div class="accordion-content">
-                    {% for r in refs %}
-                      <div class="referencia-item">
-                        <label>
-                          <input type="checkbox" name="{{ ciudad }}_{{ r.cod_int }}" {% if r.usar %}checked{% endif %}>
-                          <div class="cod-int">{{ r.cod_int }}</div>
-                          <div class="descripcion">{{ r.descripcion }}</div>
-                          <div class="stats">Cant: {{ r.cantidad }} | Equivalencia: {{ r.equivalencia }} | Total espacios: {{ r.total }}</div>
-                        </label>
-                      </div>
-                    {% endfor %}
+    <form action="{{ url_for('actualizar_referencias') }}" method="POST">
+      {% if referencias %}
+        <div class="accordion">
+          {% for ciudad, refs in referencias.items() %}
+            <div class="accordion-item">
+              <button type="button" class="accordion-button">{{ ciudad }}</button>
+              <div class="accordion-content">
+                {% for r in refs %}
+                  <div class="referencia-item">
+                    <label>
+                      <input type="checkbox" name="{{ ciudad }}_{{ r.cod_int }}" {% if r.usar %}checked{% endif %}>
+                      <div class="cod-int">{{ r.cod_int }}</div>
+                      <div class="descripcion">{{ r.descripcion }}</div>
+                      <div class="stats">Cant: {{ r.cantidad }} | Eq: {{ r.equivalencia }}</div>
+                    </label>
                   </div>
-                </div>
-              {% endfor %}
+                {% endfor %}
+              </div>
             </div>
+          {% endfor %}
+        </div>
 
-            <button type="submit" style="background: #28a745; color: white; font-weight: bold; padding: 12px 20px; margin-top: 16px;">
-              💾 GUARDAR SELECCIÓN
-            </button>
-          {% else %}
-            <p>No hay referencias especiales detectadas.</p>
-          {% endif %}
-        </form>
-      </div>
-    </div>
+        <button type="submit" style="background:#28a745;margin-top:12px;">💾 GUARDAR SELECCIÓN</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
 
-    <!-- Registrar vehículo -->
-    <div class="panel">
-      <h2>Registrar vehículo</h2>
-      <form class="actions" action="{{ url_for('registrar_vehiculo') }}" method="POST">
-          <input type="text" name="transportadora" placeholder="Transportadora" required>
-          <input type="text" name="conductor" placeholder="Conductor" required>
-          <input type="text" name="placa" placeholder="Placa" required>
-          <input type="number" name="cantidad_motos" placeholder="Capacidad (espacios)" required>
-          <input type="text" name="ciudades" placeholder="Ciudad objetivo (ej: CARTAGENA)" required>
-          <button type="submit">Registrar</button>
-      </form>
-    </div>
+<div class="panel">
+  <h2>Registrar vehículo</h2>
+  <form class="actions" action="{{ url_for('registrar_vehiculo') }}" method="POST">
+    <input type="text" name="transportadora" placeholder="Transportadora" required>
+    <input type="text" name="conductor" placeholder="Conductor" required>
+    <input type="text" name="placa" placeholder="Placa" required>
+    <input type="number" name="cantidad_motos" placeholder="Capacidad" required>
+    <input type="text" name="ciudades" placeholder="Ciudad objetivo" required>
+    <button type="submit">Registrar</button>
+  </form>
+</div>
 
-    <!-- Generar planeador -->
-    <div class="panel">
-      <h2>Generar planeador</h2>
-      <form action="{{ url_for('generar_planeador') }}" method="POST">
-          <button type="submit">Generar Excel de Despacho</button>
-      </form>
-    </div>
-
-    <script>
-      // --- Lógica del acordeón ---
-      document.addEventListener("DOMContentLoaded", function() {
-        const buttons = document.querySelectorAll(".accordion-button");
-        buttons.forEach(btn => {
-          btn.addEventListener("click", () => {
-            const content = btn.nextElementSibling;
-            const isActive = btn.classList.contains("active");
-
-            // Cierra todos los acordeones antes de abrir uno nuevo
-            document.querySelectorAll(".accordion-button").forEach(b => b.classList.remove("active"));
-            document.querySelectorAll(".accordion-content").forEach(c => c.classList.remove("show"));
-
-            if (!isActive) {
-              btn.classList.add("active");
-              content.classList.add("show");
-            }
-          });
-        });
-      });
+<div class="panel">
+  <h2>Generar planeador</h2>
+  <form action="{{ url_for('generar_planeador') }}" method="POST">
+    <button type="submit">Generar Excel</button>
+  </form>
+</div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
 
-  // --- Acordeón ---
-  const buttons = document.querySelectorAll(".accordion-button");
-  buttons.forEach(btn => {
+  document.querySelectorAll(".accordion-button").forEach(btn => {
     btn.addEventListener("click", () => {
       const content = btn.nextElementSibling;
-      const isActive = btn.classList.contains("active");
-
-      document.querySelectorAll(".accordion-button").forEach(b => b.classList.remove("active"));
       document.querySelectorAll(".accordion-content").forEach(c => c.classList.remove("show"));
-
-      if (!isActive) {
-        btn.classList.add("active");
-        content.classList.add("show");
-      }
+      content.classList.toggle("show");
     });
   });
 
-  // --- Mensaje auto-cierre ---
   const box = document.getElementById("mensaje-box");
   if (box) {
     setTimeout(() => {
@@ -243,5 +177,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 });
 </script>
+
 </body>
 </html>
