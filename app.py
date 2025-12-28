@@ -125,7 +125,7 @@ def upload():
                 "total": len(g) * eq,
                 "usar": True
             })
-    session["mensaje"] = "✅ Archivo cargado correctamente"
+    flash("✅ Archivo cargado correctamente")
     return redirect(url_for("dashboard"))
 
 @app.route("/actualizar_referencias", methods=["POST"])
