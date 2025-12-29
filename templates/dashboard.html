@@ -70,14 +70,38 @@
       .accordion-content.show {
         display: block;
       }
+
+      /* AGREGADO: Estilo para botón Cerrar Sesión */
+      .btn-logout {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        background: #c62828;
+        color: white;
+        text-decoration: none;
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: bold;
+        transition: 0.3s;
+        border: 1px solid #b71c1c;
+      }
+      .btn-logout:hover {
+        background: #e53935;
+        box-shadow: 0 0 10px rgba(229, 57, 53, 0.4);
+      }
     </style>
 </head>
 
 <body>
 
-<div class="header-title" style="text-align:center; margin-bottom:20px;">
+<div class="header-title" style="text-align:center; margin-bottom:20px; position: relative;">
   <h1>Planeador de Despacho - AKT Motos</h1>
   <h3 style="color:#00e676;">By Gilberto Thinkan</h3>
+  
+  <a href="{{ url_for('logout') }}" class="btn-logout" onclick="return confirm('¿Estás seguro de que deseas salir? Se borrarán tus datos de la sesión actual.')">
+    ❌ Salir ({{ session.usuario }})
+  </a>
 </div>
 
 {% if session.mensaje %}
@@ -87,8 +111,7 @@
 {% set _ = session.pop('mensaje', None) %}
 {% endif %}
 
- <!-- Subir archivo Excel -->
-    <div class="panel">
+ <div class="panel">
       <h2>Subir archivo Excel (Informe de Reserva)</h2>
       <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
           <input type="file" name="file" accept=".xlsx,.xls" required>
