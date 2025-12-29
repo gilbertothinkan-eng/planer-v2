@@ -4,47 +4,44 @@
     <meta charset="UTF-8">
     <title>Planner Logístico | AKT</title>
     <style>
-      body { font-family: 'Segoe UI', Arial, sans-serif; background: #121212; color: #e0e0e0; margin: 20px; }
-      h1 { color: #81d4fa; margin: 0; }
-      .panel { padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; height: 100%; box-sizing: border-box; }
-      .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
-      .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-      h2 { margin-top: 0; font-size: 1.1em; color: #81d4fa; border-bottom: 1px solid #333; padding-bottom: 8px; }
+      body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; margin: 20px; }
+      .panel { padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; box-sizing: border-box; margin-bottom: 20px; }
+      .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+      .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      h1, h2 { color: #81d4fa; margin-top: 0; }
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
-      button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; transition: 0.2s; }
-      .btn-generate { background: #0288d1; height: 100%; font-size: 1.1em; }
-      .btn-logout { position: absolute; top: 10px; right: 20px; background: #c62828; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.85em; }
-      .accordion-button { width: 100%; text-align: left; background: #252525; color: #fff; padding: 10px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; margin-bottom: 5px; }
-      .accordion-content { display: none; padding: 10px; background: #1a1a1a; }
+      button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
+      .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; }
+      .btn-logout { position: absolute; top: 10px; right: 20px; background: #c62828; color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 0.8em; }
+      .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: none; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+      .accordion-content { display: none; padding: 10px; background: #1a1a1a; border: 1px solid #444; border-top: none; }
       .show { display: block !important; }
-      .vehiculo-item { background: #252525; padding: 10px; margin-top: 5px; border-radius: 4px; display: flex; justify-content: space-between; border: 1px solid #333; }
+      .vehiculo-item { background: #252525; padding: 10px; margin-top: 5px; border-radius: 4px; display: flex; justify-content: space-between; border-left: 4px solid #00e676; }
     </style>
 </head>
 <body>
 
-<div style="text-align:center; margin-bottom:30px; position: relative;">
+<div style="text-align:center; position: relative; margin-bottom: 20px;">
   <h1>Planeador de Despacho - AKT Motos</h1>
-  <h3 style="color:#00e676; margin: 5px;">By Gilberto Thinkan®</h3>
-  <a href="{{ url_for('logout') }}" class="btn-logout" onclick="return confirm('¿Cerrar sesión?')">❌ Salir ({{ session.usuario }})</a>
+  <h3 style="color:#00e676; margin:0;">By Gilberto Thinkan®</h3>
+  <a href="/logout" class="btn-logout">❌ Salir ({{ session.usuario }})</a>
 </div>
 
 {% if session.mensaje %}
-<div id="mensaje-box" style="background:#d4edda; color:#155724; padding:10px; margin-bottom:20px; border-radius:4px;">
-  {{ session.mensaje }}
-</div>
+<div id="mensaje-box" style="background:#d4edda; color:#155724; padding:10px; margin-bottom:20px; border-radius:4px;">{{ session.mensaje }}</div>
 {% set _ = session.pop('mensaje', None) %}
 {% endif %}
 
 <div class="top-row">
     <div class="panel">
       <h2>1. Cargar Informe</h2>
-      <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" style="display:flex; gap:10px;">
+      <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; gap:10px;">
           <input type="file" name="file" required>
-          <button type="submit" style="width: auto;">Cargar</button>
+          <button type="submit" style="width:auto;">Cargar</button>
       </form>
     </div>
     <div class="panel">
-      <form action="{{ url_for('generar_planeador') }}" method="POST" style="height: 100%;">
+      <form action="/generar_planeador" method="POST" style="height:100%;">
         <button type="submit" class="btn-generate">📦 GENERAR EXCEL FINAL</button>
       </form>
     </div>
@@ -53,10 +50,10 @@
 <div class="main-grid">
     <div class="panel">
       <h2>Motos por Ciudad (Estado 40)</h2>
-      <div style="max-height: 300px; overflow-y: auto;">
+      <div style="max-height: 400px; overflow-y: auto;">
         {% for ciudad, cantidad in ciudades.items() %}
-          <div style="padding: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between;">
-            <strong>{{ ciudad }}</strong> <span>{{ cantidad }} unds</span>
+          <div style="padding:8px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
+            <span>{{ ciudad }}</span> <span style="color:#00e676;">{{ cantidad }} unds</span>
           </div>
         {% endfor %}
       </div>
@@ -64,29 +61,44 @@
 
     <div class="panel">
       <h2>Registrar Vehículo</h2>
-      <form action="{{ url_for('registrar_vehiculo') }}" method="POST" id="formVehiculo">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <form action="/registrar_vehiculo" method="POST" id="formVehiculo">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <input type="text" name="placa" placeholder="Placa" required>
             <input type="number" name="cantidad_motos" placeholder="Capacidad" required>
             <input type="text" name="transportadora" placeholder="Transportadora">
             <input type="text" name="conductor" placeholder="Conductor">
         </div>
-        <input type="text" name="ciudades" placeholder="Ciudades (CALI, BUGA)" required>
+        <input type="text" name="ciudades" placeholder="Ciudades (Ej: CALI, BUGA)" required>
         <select name="modo_carga">
             <option value="todas">Carga Mixta (Especiales + Normales)</option>
             <option value="normales">Solo Normales (Peso 1)</option>
             <option value="especiales">Solo Especiales (Peso > 1)</option>
         </select>
-        <button type="submit" style="margin-top:10px; background:#00695c;">+ Agregar a la Planeación</button>
+
+        <button type="button" class="accordion-button" onclick="document.getElementById('refs-list').classList.toggle('show')">
+            ⚙️ Configurar Especiales para este viaje ▾
+        </button>
+        <div id="refs-list" class="accordion-content" style="max-height:180px; overflow-y:auto;">
+            {% for ciudad, refs in referencias.items() %}
+                <div style="color:#81d4fa; font-size:0.8em; margin:5px 0; border-bottom:1px solid #333;">{{ ciudad }}</div>
+                {% for r in refs %}
+                <label style="display:block; font-size:0.8em;">
+                    <input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> {{ r.cod_int }} (x{{ r.equivalencia }})
+                </label>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <button type="submit" style="margin-top:15px;">+ Agregar a la Planeación</button>
       </form>
       
       {% if vehiculos %}
-      <div style="margin-top: 15px; max-height: 150px; overflow-y: auto;">
-        <strong>Vehículos registrados:</strong>
+      <div style="margin-top:20px;">
+        <strong>Vehículos en cola:</strong>
         {% for v in vehiculos %}
           <div class="vehiculo-item">
             <span>{{ v.placa }} ({{ v.modo_carga }})</span>
-            <a href="{{ url_for('eliminar_vehiculo', indice=loop.index0) }}" style="color:#ff5252; text-decoration:none;">[Eliminar]</a>
+            <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none;">[Eliminar]</a>
           </div>
         {% endfor %}
       </div>
@@ -94,30 +106,9 @@
     </div>
 </div>
 
-<div class="panel">
-  <h2>Ajuste de Referencias Especiales</h2>
-  <form action="{{ url_for('actualizar_referencias') }}" method="POST">
-    {% for ciudad, refs in referencias.items() %}
-      <button type="button" class="accordion-button" onclick="this.nextElementSibling.classList.toggle('show')">📁 {{ ciudad }}</button>
-      <div class="accordion-content">
-        {% for r in refs %}
-          <label style="display:block; margin-bottom:5px;">
-            <input type="checkbox" name="{{ ciudad }}_{{ r.cod_int }}" {% if r.usar %}checked{% endif %}>
-            {{ r.cod_int }} (x{{ r.equivalencia }}) - {{ r.descripcion[:40] }}
-          </label>
-        {% endfor %}
-      </div>
-    {% endfor %}
-    {% if referencias %}
-      <button type="submit" style="background:#28a745; margin-top:20px; width:auto;">💾 Guardar Preferencias</button>
-    {% endif %}
-  </form>
-</div>
-
 <script>
   const box = document.getElementById("mensaje-box");
-  if (box) setTimeout(() => { box.style.opacity = "0"; setTimeout(() => box.remove(), 600); }, 3000);
-
+  if (box) setTimeout(() => { box.style.opacity="0"; setTimeout(()=>box.remove(), 600); }, 3000);
   {% if session.get('limpiar_form') %}
     document.getElementById('formVehiculo').reset();
     {% set _ = session.pop('limpiar_form') %}
