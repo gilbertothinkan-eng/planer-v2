@@ -2,34 +2,32 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Planner Logístico | AKT</title>
+    <title>Planner AKT | Gilberto</title>
     <style>
       body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; margin: 20px; }
-      .panel { padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; box-sizing: border-box; margin-bottom: 20px; }
+      .panel { padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; margin-bottom: 20px; }
       .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-      h1, h2 { color: #81d4fa; margin-top: 0; }
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
       button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; }
-      .btn-logout { position: absolute; top: 10px; right: 20px; background: #c62828; color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 0.8em; }
-      .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: none; cursor: pointer; border-radius: 4px; margin-top: 10px; }
-      .accordion-content { display: none; padding: 10px; background: #1a1a1a; border: 1px solid #444; border-top: none; }
+      .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: 1px solid #444; cursor: pointer; margin-top: 10px; }
+      .accordion-content { display: none; background: #141414; border: 1px solid #444; border-top: none; }
       .show { display: block !important; }
-      .vehiculo-item { background: #252525; padding: 10px; margin-top: 5px; border-radius: 4px; display: flex; justify-content: space-between; border-left: 4px solid #00e676; }
+      .ciudad-header { background: #263238; color: #81d4fa; padding: 8px 12px; font-weight: bold; font-size: 0.85em; display: flex; justify-content: space-between; border-bottom: 1px solid #444; }
+      .ref-row { padding: 8px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #222; align-items: center; }
+      .badge-qty { background: #00e676; color: #000; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.8em; }
     </style>
 </head>
 <body>
 
 <div style="text-align:center; position: relative; margin-bottom: 20px;">
-  <h1>Planeador de Despacho - AKT Motos</h1>
-  <h3 style="color:#00e676; margin:0;">By Gilberto Thinkan®</h3>
-  <a href="/logout" class="btn-logout">❌ Salir ({{ session.usuario }})</a>
+  <h1 style="color:#81d4fa; margin:0;">Planeador de Despacho - AKT Motos</h1>
+  <a href="/logout" style="position:absolute; top:0; right:0; color:#ff5252; text-decoration:none;">❌ Salir</a>
 </div>
 
 {% if session.mensaje %}
-<div id="mensaje-box" style="background:#d4edda; color:#155724; padding:10px; margin-bottom:20px; border-radius:4px;">{{ session.mensaje }}</div>
-{% set _ = session.pop('mensaje', None) %}
+<div id="msg" style="background:#d4edda; color:#155724; padding:10px; border-radius:4px; margin-bottom:20px;">{{ session.mensaje }}</div>
 {% endif %}
 
 <div class="top-row">
@@ -53,7 +51,7 @@
       <div style="max-height: 400px; overflow-y: auto;">
         {% for ciudad, cantidad in ciudades.items() %}
           <div style="padding:8px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
-            <span>{{ ciudad }}</span> <span style="color:#00e676;">{{ cantidad }} unds</span>
+            <span>{{ ciudad }}</span> <strong>{{ cantidad }}</strong>
           </div>
         {% endfor %}
       </div>
@@ -61,7 +59,7 @@
 
     <div class="panel">
       <h2>Registrar Vehículo</h2>
-      <form action="/registrar_vehiculo" method="POST" id="formVehiculo">
+      <form action="/registrar_vehiculo" method="POST" id="formV">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <input type="text" name="placa" placeholder="Placa" required>
             <input type="number" name="cantidad_motos" placeholder="Capacidad" required>
@@ -70,33 +68,36 @@
         </div>
         <input type="text" name="ciudades" placeholder="Ciudades (Ej: CALI, BUGA)" required>
         <select name="modo_carga">
-            <option value="todas">Carga Mixta (Especiales + Normales)</option>
+            <option value="todas">Carga Mixta</option>
             <option value="normales">Solo Normales (Peso 1)</option>
             <option value="especiales">Solo Especiales (Peso > 1)</option>
         </select>
 
-        <button type="button" class="accordion-button" onclick="document.getElementById('refs-list').classList.toggle('show')">
+        <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">
             ⚙️ Configurar Especiales para este viaje ▾
         </button>
-        <div id="refs-list" class="accordion-content" style="max-height:180px; overflow-y:auto;">
+        <div id="refs" class="accordion-content" style="max-height:300px; overflow-y:auto;">
             {% for ciudad, refs in referencias.items() %}
-                <div style="color:#81d4fa; font-size:0.8em; margin:5px 0; border-bottom:1px solid #333;">{{ ciudad }}</div>
+                <div class="ciudad-header">📍 {{ ciudad }} <span>CANT.</span></div>
                 {% for r in refs %}
-                <label style="display:block; font-size:0.8em;">
-                    <input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> {{ r.cod_int }} (x{{ r.equivalencia }})
-                </label>
+                <div class="ref-row">
+                    <label style="cursor:pointer; flex-grow: 1; font-size: 0.85em;">
+                        <input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> 
+                        {{ r.cod_int }} <span style="color:#81d4fa;">(x{{ r.equivalencia }})</span>
+                    </label>
+                    <span class="badge-qty">{{ r.cantidad }}</span>
+                </div>
                 {% endfor %}
             {% endfor %}
         </div>
 
         <button type="submit" style="margin-top:15px;">+ Agregar a la Planeación</button>
       </form>
-      
+
       {% if vehiculos %}
-      <div style="margin-top:20px;">
-        <strong>Vehículos en cola:</strong>
+      <div style="margin-top:15px;">
         {% for v in vehiculos %}
-          <div class="vehiculo-item">
+          <div style="background:#252525; padding:8px; margin-top:5px; border-radius:4px; display:flex; justify-content:space-between; border-left:4px solid #0288d1;">
             <span>{{ v.placa }} ({{ v.modo_carga }})</span>
             <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none;">[Eliminar]</a>
           </div>
@@ -107,11 +108,10 @@
 </div>
 
 <script>
-  const box = document.getElementById("mensaje-box");
-  if (box) setTimeout(() => { box.style.opacity="0"; setTimeout(()=>box.remove(), 600); }, 3000);
+  setTimeout(() => { if(document.getElementById('msg')) document.getElementById('msg').remove(); }, 3000);
   {% if session.get('limpiar_form') %}
-    document.getElementById('formVehiculo').reset();
-    {% set _ = session.pop('limpiar_form') %}
+    document.getElementById('formV').reset();
+    {% set _ = session.pop('limpiar_form', None) %}
   {% endif %}
 </script>
 </body>
