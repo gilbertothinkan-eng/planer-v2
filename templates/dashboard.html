@@ -85,15 +85,13 @@
 {% endif %}
 
 <div class="cols">
-  <div class="panel">
+  <div class="panel full-span">
     <h2>Subir archivo Excel (Informe de Reserva)</h2>
     <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
       <input type="file" name="file" accept=".xlsx,.xls" required>
       <button type="submit">Cargar</button>
     </form>
   </div>
-
-  <div></div>
 </div>
 
 <div class="cols">
