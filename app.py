@@ -54,7 +54,7 @@ def login():
             session["usuario"], session["user_id"] = user, str(uuid.uuid4())
             session["vehiculos"], session["conteo_ciudades"], session["referencias_seleccionadas"] = [], {}, {}
             return redirect(url_for("dashboard"))
-        return render_template("login.html", error="❌ Error")
+        return render_template("login.html", error="❌ Acceso Denegado")
     return render_template("login.html")
 
 @app.route("/logout")
@@ -92,6 +92,20 @@ def upload():
 @app.route("/registrar_vehiculo", methods=["POST"])
 def registrar_vehiculo():
     v_list = session.get("vehiculos", [])
+    refs_ids = request.form.getlist("refs_especiales")
+    
+    # MEJORA: Construir resumen para la interfaz
+    resumen = []
+    referencias_data = session.get("referencias_seleccionadas", {})
+    for ciudad, lista in referencias_data.items():
+        for r in lista:
+            if f"{ciudad}_{r['cod_int']}" in refs_ids:
+                resumen.append({
+                    "nombre": r['cod_int'],
+                    "cant": r['cantidad'],
+                    "peso_total": r['cantidad'] * r['equivalencia']
+                })
+
     v_list.append({
         "transportadora": request.form["transportadora"],
         "conductor": request.form["conductor"],
@@ -99,9 +113,10 @@ def registrar_vehiculo():
         "cantidad_motos": int(request.form["cantidad_motos"]),
         "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",")],
         "modo_carga": request.form.get("modo_carga", "todas"),
-        "refs_permitidas": request.form.getlist("refs_especiales")
+        "refs_permitidas": refs_ids,
+        "resumen_visual": resumen
     })
-    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo registrado", True
+    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo en lista", True
     return redirect(url_for("dashboard"))
 
 @app.route("/eliminar_vehiculo/<int:indice>")
@@ -144,13 +159,13 @@ def generar_planeador():
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 hoja = _excel_safe_sheet_name(v["placa"])
-                # ENCABEZADO TÉCNICO RESPETADO
-                pd.DataFrame([{"Transportadora": v["transportadora"], "Conductor": v["conductor"], "Placa": v["placa"], "Capacidad": cap, "Ocupado": peso_final}]).to_excel(writer, sheet_name=hoja, index=False)
+                enc = pd.DataFrame([{"Transportadora": v["transportadora"], "Conductor": v["conductor"], "Placa": v["placa"], "Capacidad": cap, "Ocupado": peso_final}])
+                enc.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
                 asignado[columnas].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
                 df_pend = df_pend.drop(asignado.index)
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="Planeador_AKT.xlsx")
+    return send_file(output, as_attachment=True, download_name="Planeador_Despacho.xlsx")
 
 if __name__ == "__main__": app.run(debug=True)
