@@ -11,6 +11,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
 
+# Diccionario de equivalencias original (Sin modificaciones)
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -92,31 +93,36 @@ def upload():
 @app.route("/registrar_vehiculo", methods=["POST"])
 def registrar_vehiculo():
     v_list = session.get("vehiculos", [])
-    refs_ids = request.form.getlist("refs_especiales")
+    ciudades_input = [c.strip().upper() for c in request.form["ciudades"].split(",")]
+    refs_seleccionadas_ids = request.form.getlist("refs_especiales")
     
-    # MEJORA: Construir resumen para la interfaz
-    resumen = []
+    # Mejora: Filtrar solo lo que el usuario marcó para este vehículo y destino
+    resumen_visual = []
     referencias_data = session.get("referencias_seleccionadas", {})
-    for ciudad, lista in referencias_data.items():
-        for r in lista:
-            if f"{ciudad}_{r['cod_int']}" in refs_ids:
-                resumen.append({
-                    "nombre": r['cod_int'],
-                    "cant": r['cantidad'],
-                    "peso_total": r['cantidad'] * r['equivalencia']
-                })
+    
+    for ciudad, lista_refs in referencias_data.items():
+        if ciudad in ciudades_input: # Solo ciudades de este viaje
+            for r in lista_refs:
+                identificador = f"{ciudad}_{r['cod_int']}"
+                if identificador in refs_seleccionadas_ids: # Solo si se marcó el check
+                    resumen_visual.append({
+                        "ciudad": ciudad,
+                        "nombre": r['cod_int'],
+                        "cant": r['cantidad'],
+                        "peso_total": r['cantidad'] * r['equivalencia']
+                    })
 
     v_list.append({
         "transportadora": request.form["transportadora"],
         "conductor": request.form["conductor"],
         "placa": request.form["placa"].upper(),
         "cantidad_motos": int(request.form["cantidad_motos"]),
-        "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",")],
+        "ciudades": ciudades_input,
         "modo_carga": request.form.get("modo_carga", "todas"),
-        "refs_permitidas": refs_ids,
-        "resumen_visual": resumen
+        "refs_permitidas": refs_seleccionadas_ids,
+        "resumen_visual": resumen_visual
     })
-    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo en lista", True
+    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo agregado", True
     return redirect(url_for("dashboard"))
 
 @app.route("/eliminar_vehiculo/<int:indice>")
@@ -166,6 +172,6 @@ def generar_planeador():
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="Planeador_Despacho.xlsx")
+    return send_file(output, as_attachment=True, download_name="Planeador_AKT.xlsx")
 
 if __name__ == "__main__": app.run(debug=True)
