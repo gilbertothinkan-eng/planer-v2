@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, session, send_file
 import pandas as pd
 from collections import Counter
 import os, io, uuid
-from typing import Dict, List, Optional, Tuple
+from typing import List, Tuple
 
 app = Flask(__name__)
 app.secret_key = "gilberto_clave_super_secreta"
@@ -84,17 +84,14 @@ def upload():
         eq = get_equivalencia(cod)
         if eq > 1:
             refs.setdefault(ciudad, []).append({
-                "cod_int": cod, "descripcion": str(g["Descripcion"].iloc[0]),
-                "cantidad": len(g), "equivalencia": eq
+                "cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq
             })
-    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo cargado correctamente"
+    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo cargado"
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
 def registrar_vehiculo():
     v_list = session.get("vehiculos", [])
-    # Captura las referencias marcadas en el acordeón para ESTE camión
-    refs_permitidas = request.form.getlist("refs_especiales")
     v_list.append({
         "transportadora": request.form["transportadora"],
         "conductor": request.form["conductor"],
@@ -102,7 +99,7 @@ def registrar_vehiculo():
         "cantidad_motos": int(request.form["cantidad_motos"]),
         "ciudades": [c.strip().upper() for c in request.form["ciudades"].split(",")],
         "modo_carga": request.form.get("modo_carga", "todas"),
-        "refs_permitidas": refs_permitidas
+        "refs_permitidas": request.form.getlist("refs_especiales")
     })
     session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo registrado", True
     return redirect(url_for("dashboard"))
@@ -131,12 +128,10 @@ def generar_planeador():
             posibles = posibles.sort_values(["Reserva", "Dirección 1"])
 
             def permitido(r):
-                es_esp = r["peso_espacio"] > 1
-                if modo == "normales" and es_esp: return False
-                if modo == "especiales" and not es_esp: return False
-                if es_esp:
-                    identificador = f"{r['Descr EXXIT'].upper()}_{r['COD INT']}"
-                    return identificador in permitidas
+                if modo == "normales" and r["peso_espacio"] > 1: return False
+                if modo == "especiales" and r["peso_espacio"] == 1: return False
+                if r["peso_espacio"] > 1:
+                    return f"{r['Descr EXXIT'].upper()}_{r['COD INT']}" in permitidas
                 return True
 
             posibles = posibles[posibles.apply(permitido, axis=1)]
@@ -149,13 +144,13 @@ def generar_planeador():
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 hoja = _excel_safe_sheet_name(v["placa"])
-                enc = pd.DataFrame([{"Transportadora": v["transportadora"], "Conductor": v["conductor"], "Placa": v["placa"], "Capacidad": cap, "Ocupado": peso_final, "Modo": modo}])
-                enc.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
+                # ENCABEZADO TÉCNICO RESPETADO
+                pd.DataFrame([{"Transportadora": v["transportadora"], "Conductor": v["conductor"], "Placa": v["placa"], "Capacidad": cap, "Ocupado": peso_final}]).to_excel(writer, sheet_name=hoja, index=False)
                 asignado[columnas].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
                 df_pend = df_pend.drop(asignado.index)
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name=f"Planeador_{session['usuario']}.xlsx")
+    return send_file(output, as_attachment=True, download_name="Planeador_AKT.xlsx")
 
 if __name__ == "__main__": app.run(debug=True)
