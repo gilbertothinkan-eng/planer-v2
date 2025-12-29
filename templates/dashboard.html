@@ -3,65 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <title>Planner Logístico | AKT</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
       body { font-family: 'Segoe UI', Arial, sans-serif; background: #121212; color: #e0e0e0; margin: 20px; }
       h1 { color: #81d4fa; margin: 0; }
       .panel { padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; height: 100%; box-sizing: border-box; }
-      
-      /* --- GRID SUPERIOR (Cargar y Generar) --- */
-      .top-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-
-      /* --- GRID PRINCIPAL (Conteo y Registro) --- */
-      .main-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-
+      .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+      .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
       h2 { margin-top: 0; font-size: 1.1em; color: #81d4fa; border-bottom: 1px solid #333; padding-bottom: 8px; }
-      
-      input[type="text"], input[type="number"], input[type="file"] {
-        width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box;
-      }
-
-      button {
-        padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; transition: 0.2s;
-      }
-      button:hover { background: #00796b; }
-
+      input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
+      button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; transition: 0.2s; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.1em; }
-      .btn-generate:hover { background: #039be5; }
-
-      .btn-logout {
-        position: absolute; top: 10px; right: 20px; background: #c62828; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.85em;
-      }
-
-      /* Acordeón y Referencias */
-      .accordion-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-      .accordion-item { border: 1px solid #333; border-radius: 4px; margin-bottom: 5px; overflow: hidden; }
-      .accordion-button { width: 100%; text-align: left; background: #252525; color: #fff; padding: 10px; border: none; cursor: pointer; font-weight: bold; }
+      .btn-logout { position: absolute; top: 10px; right: 20px; background: #c62828; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.85em; }
+      .accordion-button { width: 100%; text-align: left; background: #252525; color: #fff; padding: 10px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; margin-bottom: 5px; }
       .accordion-content { display: none; padding: 10px; background: #1a1a1a; }
-      .accordion-content.show { display: block; }
-      .referencia-item { background: #333; padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.85em; }
+      .show { display: block !important; }
+      .vehiculo-item { background: #252525; padding: 10px; margin-top: 5px; border-radius: 4px; display: flex; justify-content: space-between; border: 1px solid #333; }
     </style>
 </head>
 <body>
 
-<div class="header-title" style="text-align:center; margin-bottom:30px; position: relative;">
+<div style="text-align:center; margin-bottom:30px; position: relative;">
   <h1>Planeador de Despacho - AKT Motos</h1>
   <h3 style="color:#00e676; margin: 5px;">By Gilberto Thinkan®</h3>
   <a href="{{ url_for('logout') }}" class="btn-logout" onclick="return confirm('¿Cerrar sesión?')">❌ Salir ({{ session.usuario }})</a>
 </div>
 
 {% if session.mensaje %}
-<div id="mensaje-box" style="background:#d4edda;color:#155724;padding:10px;margin:10px 0;border-radius:4px;transition:opacity .6s;">
+<div id="mensaje-box" style="background:#d4edda; color:#155724; padding:10px; margin-bottom:20px; border-radius:4px;">
   {{ session.mensaje }}
 </div>
 {% set _ = session.pop('mensaje', None) %}
@@ -69,13 +37,12 @@
 
 <div class="top-row">
     <div class="panel">
-      <h2>1. Cargar Informe de Reserva</h2>
-      <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center;">
-          <input type="file" name="file" accept=".xlsx,.xls" required>
+      <h2>1. Cargar Informe</h2>
+      <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" style="display:flex; gap:10px;">
+          <input type="file" name="file" required>
           <button type="submit" style="width: auto;">Cargar</button>
       </form>
     </div>
-
     <div class="panel">
       <form action="{{ url_for('generar_planeador') }}" method="POST" style="height: 100%;">
         <button type="submit" class="btn-generate">📦 GENERAR EXCEL FINAL</button>
@@ -86,94 +53,75 @@
 <div class="main-grid">
     <div class="panel">
       <h2>Motos por Ciudad (Estado 40)</h2>
-      <div style="max-height: 350px; overflow-y: auto;">
-        {% if ciudades %}
-          <table style="width:100%; border-collapse: collapse; font-size: 0.9em;">
-            {% for ciudad, cantidad in ciudades.items() %}
-              <tr style="border-bottom: 1px solid #333;">
-                <td style="padding: 10px;"><strong>{{ ciudad }}</strong></td>
-                <td style="padding: 10px; text-align: right; color: #00e676;">{{ cantidad }} unds</td>
-              </tr>
-            {% endfor %}
-          </table>
-        {% else %}
-          <p style="color:#666; padding: 20px;">Esperando carga de datos...</p>
-        {% endif %}
+      <div style="max-height: 300px; overflow-y: auto;">
+        {% for ciudad, cantidad in ciudades.items() %}
+          <div style="padding: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between;">
+            <strong>{{ ciudad }}</strong> <span>{{ cantidad }} unds</span>
+          </div>
+        {% endfor %}
       </div>
     </div>
 
     <div class="panel">
-      <h2>Registrar Vehículo de Despacho</h2>
-      <form action="{{ url_for('registrar_vehiculo') }}" method="POST">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <input type="text" name="transportadora" placeholder="Transportadora" required>
-            <input type="text" name="conductor" placeholder="Nombre Conductor" required>
-            <input type="text" name="placa" placeholder="Placa Vehículo" required>
-            <input type="number" name="cantidad_motos" placeholder="Capacidad Total" required>
+      <h2>Registrar Vehículo</h2>
+      <form action="{{ url_for('registrar_vehiculo') }}" method="POST" id="formVehiculo">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <input type="text" name="placa" placeholder="Placa" required>
+            <input type="number" name="cantidad_motos" placeholder="Capacidad" required>
+            <input type="text" name="transportadora" placeholder="Transportadora">
+            <input type="text" name="conductor" placeholder="Conductor">
         </div>
-        <input type="text" name="ciudades" placeholder="Ciudades Objetivo (separadas por coma: CALI, BUGA)" required>
+        <input type="text" name="ciudades" placeholder="Ciudades (CALI, BUGA)" required>
+        <select name="modo_carga">
+            <option value="todas">Carga Mixta (Especiales + Normales)</option>
+            <option value="normales">Solo Normales (Peso 1)</option>
+            <option value="especiales">Solo Especiales (Peso > 1)</option>
+        </select>
         <button type="submit" style="margin-top:10px; background:#00695c;">+ Agregar a la Planeación</button>
       </form>
       
       {% if vehiculos %}
-      <div style="margin-top: 15px; padding: 10px; background: #252525; border-radius: 4px; font-size: 0.85em;">
-        <strong>Vehículos listos:</strong> {{ vehiculos|length }} 
-        <span style="color: #81d4fa; margin-left: 10px;">(Placas: {% for v in vehiculos %}{{ v.placa }}{% if not loop.last %}, {% endif %}{% endfor %})</span>
+      <div style="margin-top: 15px; max-height: 150px; overflow-y: auto;">
+        <strong>Vehículos registrados:</strong>
+        {% for v in vehiculos %}
+          <div class="vehiculo-item">
+            <span>{{ v.placa }} ({{ v.modo_carga }})</span>
+            <a href="{{ url_for('eliminar_vehiculo', indice=loop.index0) }}" style="color:#ff5252; text-decoration:none;">[Eliminar]</a>
+          </div>
+        {% endfor %}
       </div>
       {% endif %}
     </div>
 </div>
 
 <div class="panel">
-  <h2>Ajuste de Referencias Especiales (Multi-Criterio)</h2>
+  <h2>Ajuste de Referencias Especiales</h2>
   <form action="{{ url_for('actualizar_referencias') }}" method="POST">
-    {% if referencias %}
-      <div class="accordion-container">
-        {% for ciudad, refs in referencias.items() %}
-          <div class="accordion-item">
-            <button type="button" class="accordion-button">📁 {{ ciudad }}</button>
-            <div class="accordion-content">
-              {% for r in refs %}
-                <div class="referencia-item">
-                  <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" name="{{ ciudad }}_{{ r.cod_int }}" {% if r.usar %}checked{% endif %}>
-                    <div>
-                      <strong>{{ r.cod_int }}</strong><br>
-                      <small style="color: #bbb;">{{ r.descripcion[:35] }}</small><br>
-                      <small style="color: #81d4fa;">Cant: {{ r.cantidad }} | Eq: {{ r.equivalencia }}</small>
-                    </div>
-                  </label>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
+    {% for ciudad, refs in referencias.items() %}
+      <button type="button" class="accordion-button" onclick="this.nextElementSibling.classList.toggle('show')">📁 {{ ciudad }}</button>
+      <div class="accordion-content">
+        {% for r in refs %}
+          <label style="display:block; margin-bottom:5px;">
+            <input type="checkbox" name="{{ ciudad }}_{{ r.cod_int }}" {% if r.usar %}checked{% endif %}>
+            {{ r.cod_int }} (x{{ r.equivalencia }}) - {{ r.descripcion[:40] }}
+          </label>
         {% endfor %}
       </div>
-      <button type="submit" style="background:#28a745; margin-top:20px; width: auto; padding: 10px 40px;">💾 Guardar Preferencias</button>
-    {% else %}
-      <p style="color:#666;">Cargue un informe para visualizar referencias especiales por ciudad.</p>
+    {% endfor %}
+    {% if referencias %}
+      <button type="submit" style="background:#28a745; margin-top:20px; width:auto;">💾 Guardar Preferencias</button>
     {% endif %}
   </form>
 </div>
 
 <script>
-  // Script para manejar el acordeón de ciudades
-  document.querySelectorAll(".accordion-button").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const content = btn.nextElementSibling;
-      content.classList.toggle("show");
-    });
-  });
-
-  // Auto-cerrado del mensaje de alerta
   const box = document.getElementById("mensaje-box");
-  if (box) {
-    setTimeout(() => {
-      box.style.opacity = "0";
-      setTimeout(() => box.remove(), 600);
-    }, 3000);
-  }
-</script>
+  if (box) setTimeout(() => { box.style.opacity = "0"; setTimeout(() => box.remove(), 600); }, 3000);
 
+  {% if session.get('limpiar_form') %}
+    document.getElementById('formVehiculo').reset();
+    {% set _ = session.pop('limpiar_form') %}
+  {% endif %}
+</script>
 </body>
 </html>
