@@ -9,20 +9,22 @@
       .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
-      button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
+      button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; transition: 0.3s; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; }
       .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: 1px solid #444; cursor: pointer; margin-top: 10px; }
       .accordion-content { display: none; background: #141414; border: 1px solid #444; border-top: none; }
       .show { display: block !important; }
-      .ciudad-header { background: #263238; color: #81d4fa; padding: 8px 12px; font-weight: bold; font-size: 0.85em; display: flex; justify-content: space-between; border-bottom: 1px solid #444; }
-      .ref-row { padding: 8px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #222; align-items: center; }
-      .badge-qty { background: #00e676; color: #000; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.8em; }
+      .ciudad-header { background: #263238; color: #81d4fa; padding: 8px 12px; font-weight: bold; font-size: 0.85em; display: flex; justify-content: space-between; }
+      .ref-row { padding: 6px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #222; align-items: center; }
+      .badge-qty { background: #00e676; color: #000; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 0.8em; }
+      .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:6px; border-left:4px solid #0288d1; position: relative; }
     </style>
 </head>
 <body>
 
-<div style="text-align:center; position: relative; margin-bottom: 20px;">
+<div style="text-align:center; position: relative; margin-bottom: 25px;">
   <h1 style="color:#81d4fa; margin:0;">Planeador de Despacho - AKT Motos</h1>
+  <p style="color:#00e676; margin:5px;">By Gilberto Thinkan®</p>
   <a href="/logout" style="position:absolute; top:0; right:0; color:#ff5252; text-decoration:none;">❌ Salir</a>
 </div>
 
@@ -33,7 +35,7 @@
 <div class="top-row">
     <div class="panel">
       <h2>1. Cargar Informe</h2>
-      <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; gap:10px;">
+      <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; gap:10px; margin-top:10px;">
           <input type="file" name="file" required>
           <button type="submit" style="width:auto;">Cargar</button>
       </form>
@@ -48,10 +50,10 @@
 <div class="main-grid">
     <div class="panel">
       <h2>Motos por Ciudad (Estado 40)</h2>
-      <div style="max-height: 400px; overflow-y: auto;">
+      <div style="max-height: 500px; overflow-y: auto;">
         {% for ciudad, cantidad in ciudades.items() %}
-          <div style="padding:8px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
-            <span>{{ ciudad }}</span> <strong>{{ cantidad }}</strong>
+          <div style="padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
+            <span>{{ ciudad }}</span> <strong>{{ cantidad }} unds</strong>
           </div>
         {% endfor %}
       </div>
@@ -76,7 +78,7 @@
         <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">
             ⚙️ Configurar Especiales para este viaje ▾
         </button>
-        <div id="refs" class="accordion-content" style="max-height:300px; overflow-y:auto;">
+        <div id="refs" class="accordion-content" style="max-height:250px; overflow-y:auto;">
             {% for ciudad, refs in referencias.items() %}
                 <div class="ciudad-header">📍 {{ ciudad }} <span>CANT.</span></div>
                 {% for r in refs %}
@@ -95,11 +97,30 @@
       </form>
 
       {% if vehiculos %}
-      <div style="margin-top:15px;">
+      <div style="margin-top:20px;">
+        <p style="color: #81d4fa; font-weight: bold; font-size: 0.9em;">Vehículos en cola:</p>
         {% for v in vehiculos %}
-          <div style="background:#252525; padding:8px; margin-top:5px; border-radius:4px; display:flex; justify-content:space-between; border-left:4px solid #0288d1;">
-            <span>{{ v.placa }} ({{ v.modo_carga }})</span>
-            <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none;">[Eliminar]</a>
+          <div class="card-v">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <strong style="font-size: 1.1em; color:#fff;">{{ v.placa }}</strong>
+                    <span style="font-size:0.8em; color:#aaa; margin-left:10px;">Cap: {{ v.cantidad_motos }}</span>
+                </div>
+                <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em;">[Eliminar]</a>
+            </div>
+            
+            {% if v.resumen_visual %}
+            <div style="margin-top:10px; border-top:1px solid #444; padding-top:8px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    {% for r in v.resumen_visual %}
+                    <div style="background:#111; border:1px solid #444; padding:3px 7px; border-radius:4px; font-size:0.7em;">
+                        {{ r.nombre }} <span style="color:#00e676;">{{ r.cant }}u</span> 
+                        <span style="color:#81d4fa;">(P:{{ r.peso_total }})</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
           </div>
         {% endfor %}
       </div>
