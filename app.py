@@ -9,8 +9,7 @@ app.secret_key = "gilberto_clave_super_secreta"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
-
+# Diccionario de equivalencias intacto
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -66,7 +65,7 @@ def logout():
 def dashboard():
     if "usuario" not in session: return redirect(url_for("login"))
     return render_template("dashboard.html", 
-                           ciudades=session.get("conteo_ciudades", {}),
+                           conteo_detallado=session.get("conteo_detallado", {}),
                            referencias=session.get("referencias_seleccionadas", {}),
                            vehiculos=session.get("vehiculos", []),
                            ciudades_especiales=session.get("ciudades_especiales", []))
@@ -80,19 +79,25 @@ def upload():
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{session['user_id']}_datos.pkl"))
     
-    conteo = dict(Counter(df["Descr EXXIT"].str.upper()))
-    ciudades_especiales = df[df["peso_espacio"] > 1]["Descr EXXIT"].str.upper().unique().tolist()
-    session["ciudades_especiales"] = ciudades_especiales
+    # Mejora: Conteo desglosado (Normales vs Especiales)
+    conteo_detallado = {}
+    ciudades = df["Descr EXXIT"].str.upper().unique()
+    for ciudad in ciudades:
+        df_c = df[df["Descr EXXIT"].str.upper() == ciudad]
+        norm = int(len(df_c[df_c["peso_espacio"] == 1]))
+        esp = int(len(df_c[df_c["peso_espacio"] > 1]))
+        conteo_detallado[ciudad] = {"total": norm + esp, "normales": norm, "especiales": esp}
+    
+    session["conteo_detallado"] = conteo_detallado
+    session["ciudades_especiales"] = [c for c, v in conteo_detallado.items() if v["especiales"] > 0]
 
     refs = {}
     for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
         eq = get_equivalencia(cod)
         if eq > 1:
-            refs.setdefault(ciudad, []).append({
-                "cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq
-            })
-    session["conteo_ciudades"] = conteo
-    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo cargado"
+            refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
+    
+    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo analizado con éxito"
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
@@ -122,7 +127,7 @@ def registrar_vehiculo():
         "refs_permitidas": refs_ids,
         "resumen_visual": resumen_visual
     })
-    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo registrado", True
+    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo agregado", True
     return redirect(url_for("dashboard"))
 
 @app.route("/eliminar_vehiculo/<int:indice>")
@@ -144,7 +149,6 @@ def generar_planeador():
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         for v in vehiculos_usr:
             cap, modo, permitidas = v["cantidad_motos"], v["modo_carga"], v["refs_permitidas"]
-            min_cap = int(cap * 0.90)
             posibles = df_pend[df_pend["Descr EXXIT"].str.upper().isin(v["ciudades"])].copy()
             posibles = posibles.sort_values(["Reserva", "Dirección 1"])
 
@@ -160,7 +164,7 @@ def generar_planeador():
             items = [{"id": i, "peso": int(r["peso"])} for i, r in grupos.iterrows() if r["peso"] <= cap]
 
             ids, peso_final = _knapsack_max_peso_min_items(items, cap)
-            if peso_final >= min_cap:
+            if peso_final > 0:
                 filas = []
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
@@ -172,6 +176,6 @@ def generar_planeador():
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="Planeador_AKT.xlsx")
+    return send_file(output, as_attachment=True, download_name="Planeador_AKT_Gilberto.xlsx")
 
 if __name__ == "__main__": app.run(debug=True)
