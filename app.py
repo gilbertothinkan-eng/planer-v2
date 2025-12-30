@@ -9,7 +9,7 @@ app.secret_key = "gilberto_clave_super_secreta"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# 1. USUARIOS (Verificados)
+# 1. USUARIOS (Intactos)
 USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
 
 # 2. TABLA DE EQUIVALENCIAS (Intacta)
@@ -47,6 +47,27 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
     best_c = max(range(capacidad + 1), key=lambda x: dp[x])
     return sel[best_c], dp[best_c][0]
 
+# Función auxiliar para no repetir código de actualización
+def _actualizar_estado_inventario(df, user_id):
+    df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{user_id}_datos.pkl"))
+    conteo_det = {}
+    ciudades_list = df["Descr EXXIT"].str.upper().unique()
+    for c in ciudades_list:
+        df_c = df[df["Descr EXXIT"].str.upper() == c]
+        norm = int(len(df_c[df_c["peso_espacio"] == 1]))
+        esp = int(len(df_c[df_c["peso_espacio"] > 1]))
+        conteo_det[c] = {"total": norm + esp, "normales": norm, "especiales": esp}
+    
+    session["conteo_detallado"] = conteo_det
+    session["ciudades_especiales"] = [c for c, v in conteo_det.items() if v["especiales"] > 0]
+    
+    refs = {}
+    for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
+        eq = get_equivalencia(cod)
+        if eq > 1:
+            refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
+    session["referencias_seleccionadas"] = refs
+
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -80,26 +101,9 @@ def upload():
     df = df[df["Estado Satf"] == 40].copy()
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
-    df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{session['user_id']}_datos.pkl"))
     
-    # MEJORA: Conteo desglosado (Normales vs Especiales)
-    conteo_det = {}
-    ciudades_list = df["Descr EXXIT"].str.upper().unique()
-    for c in ciudades_list:
-        df_c = df[df["Descr EXXIT"].str.upper() == c]
-        norm = int(len(df_c[df_c["peso_espacio"] == 1]))
-        esp = int(len(df_c[df_c["peso_espacio"] > 1]))
-        conteo_det[c] = {"total": norm + esp, "normales": norm, "especiales": esp}
-    
-    session["conteo_detallado"] = conteo_det
-    session["ciudades_especiales"] = [c for c, v in conteo_det.items() if v["especiales"] > 0]
-
-    refs = {}
-    for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
-        eq = get_equivalencia(cod)
-        if eq > 1:
-            refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
-    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo analizado"
+    _actualizar_estado_inventario(df, session['user_id'])
+    session["mensaje"] = "✅ Archivo analizado"
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
@@ -127,7 +131,8 @@ def registrar_vehiculo():
         "ciudades": ciudades_input,
         "modo_carga": request.form.get("modo_carga", "todas"),
         "refs_permitidas": refs_ids,
-        "resumen_visual": resumen_visual
+        "resumen_visual": resumen_visual,
+        "procesado": False  # Para saber si ya se generó su Excel
     })
     session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
     return redirect(url_for("dashboard"))
@@ -137,6 +142,12 @@ def eliminar_vehiculo(indice):
     v_list = session.get("vehiculos", [])
     if 0 <= indice < len(v_list): v_list.pop(indice)
     session["vehiculos"], session.modified = v_list, True
+    return redirect(url_for("dashboard"))
+
+@app.route("/limpiar_cola")
+def limpiar_cola():
+    session["vehiculos"] = []
+    session.modified = True
     return redirect(url_for("dashboard"))
 
 @app.route("/generar_planeador", methods=["POST"])
@@ -172,7 +183,6 @@ def generar_planeador():
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 hoja = _excel_safe_sheet_name(v["placa"])
                 
-                # REVISIÓN LUPA: Restauración de Porcentaje y Cabecera
                 porcentaje = f"{(peso_final / cap) * 100:.1f}%"
                 enc = pd.DataFrame([{
                     "Transportadora": v["transportadora"], 
@@ -184,9 +194,17 @@ def generar_planeador():
                 }])
                 enc.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
                 asignado[columnas].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
+                
+                # LA MEJORA SOLICITADA: Se elimina del inventario lo asignado
                 df_pend = df_pend.drop(asignado.index)
+                v["procesado"] = True
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
+
+    # Actualizar el archivo de datos y la sesión con el inventario restante
+    _actualizar_estado_inventario(df_pend, session['user_id'])
+    session.modified = True
+
     output.seek(0)
     return send_file(output, as_attachment=True, download_name="Planeador_AKT_Gilberto.xlsx")
 
