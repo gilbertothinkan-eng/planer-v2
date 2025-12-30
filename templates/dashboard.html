@@ -20,11 +20,13 @@
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; color: #00e676; font-weight: bold; }
       .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
 
+      /* Semáforo Visual en Borde */
       .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; }
       .v-verde { border-left-color: #00e676; } 
       .v-amarillo { border-left-color: #ffd600; } 
       .v-rojo { border-left-color: #ff5252; }
 
+      /* KPIs Superiores */
       .kpi-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
       .kpi-card { padding: 12px; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; text-align: center; }
       .kpi-val { display: block; font-size: 1.4em; font-weight: bold; color: #00e676; }
@@ -167,6 +169,15 @@
                   <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
                   {% endfor %}
               </div>
+
+              {% if pct < 90 %}
+              <div style="background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; margin-top: 8px; font-size: 0.75em; color: #ffd600; border: 1px dashed #ffd600;">
+                💡 <strong>Sugerencia:</strong> Tienes espacio. Mira pedidos en: 
+                <span style="color:#ffd600;">
+                  {% for c, d in conteo_detallado.items() %}{% if d.total > 0 and loop.index < 4 %}{{ c }} {% endif %}{% endfor %}
+                </span>
+              </div>
+              {% endif %}
             </div>
           {% endfor %}
         </div>
