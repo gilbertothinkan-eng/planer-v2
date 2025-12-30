@@ -67,11 +67,28 @@ def logout():
 @app.route("/dashboard")
 def dashboard():
     if "usuario" not in session: return redirect(url_for("login"))
+    
+    vehiculos = session.get("vehiculos", [])
+    conteo_detallado = session.get("conteo_detallado", {})
+    
+    # --- MEJORA VISUAL: Totales para KPIs ---
+    total_pendientes = sum(d['total'] for d in conteo_detallado.values())
+    peso_total_flota = 0
+    capacidad_total_flota = 0
+    
+    for v in vehiculos:
+        capacidad_total_flota += v['cantidad_motos']
+        for r in v.get('resumen_visual', []):
+            peso_total_flota += r.get('peso_total', 0)
+
     return render_template("dashboard.html", 
-                           conteo_detallado=session.get("conteo_detallado", {}),
+                           conteo_detallado=conteo_detallado,
                            referencias=session.get("referencias_seleccionadas", {}),
-                           vehiculos=session.get("vehiculos", []),
-                           ciudades_especiales=session.get("ciudades_especiales", []))
+                           vehiculos=vehiculos,
+                           ciudades_especiales=session.get("ciudades_especiales", []),
+                           total_pendientes=total_pendientes,
+                           peso_total_flota=peso_total_flota,
+                           total_capacidad_flota=capacidad_total_flota)
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -82,7 +99,6 @@ def upload():
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{session['user_id']}_datos.pkl"))
     
-    # MEJORA: Conteo desglosado (Normales vs Especiales)
     conteo_det = {}
     ciudades_list = df["Descr EXXIT"].str.upper().unique()
     for c in ciudades_list:
@@ -172,7 +188,6 @@ def generar_planeador():
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 hoja = _excel_safe_sheet_name(v["placa"])
                 
-                # REVISIÓN LUPA: Restauración de Porcentaje y Cabecera
                 porcentaje = f"{(peso_final / cap) * 100:.1f}%"
                 enc = pd.DataFrame([{
                     "Transportadora": v["transportadora"], 
