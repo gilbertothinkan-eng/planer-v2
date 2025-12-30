@@ -11,7 +11,8 @@
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
       button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; border: 2px solid #01579b; }
-      .btn-logout { background: #d32f2f; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #b71c1c; }
+      .btn-logout { background: #d32f2f; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #b71c1c; transition: 0.3s; }
+      .btn-logout:hover { background: #ff5252; }
       .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: 1px solid #444; cursor: pointer; margin-top: 10px; }
       .accordion-content { display: none; background: #141414; border: 1px solid #444; }
       .show { display: block !important; }
@@ -20,8 +21,8 @@
       .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:6px; border-left:4px solid #0288d1; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; }
       
-      /* ESTA ES LA ÚNICA MEJORA AÑADIDA: Scroll para la cola de vehículos */
-      .scroll-cola { max-height: 400px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
+      /* LUPA: Ajuste de altura a 210px para que el scroll aparezca al 2do vehículo */
+      .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
