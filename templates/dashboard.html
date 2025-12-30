@@ -11,31 +11,23 @@
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
       button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; border: 2px solid #01579b; }
-      .btn-logout { background: #d32f2f; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #b71c1c; }
+      .btn-logout { background: #d32f2f; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #b71c1c; transition: 0.3s; }
+      .btn-logout:hover { background: #ff5252; }
       .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: 1px solid #444; cursor: pointer; margin-top: 10px; }
       .accordion-content { display: none; background: #141414; border: 1px solid #444; }
       .show { display: block !important; }
       .ciudad-item { padding:12px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
-      .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; color: #00e676; font-weight: bold; }
-      .scroll-cola { max-height: 400px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
-
-      /* Semáforo Visual */
-      .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; transition: 0.3s; }
-      .v-verde { border-left-color: #00e676; } 
-      .v-amarillo { border-left-color: #ffd600; } 
-      .v-rojo { border-left-color: #ff5252; }
-
-      /* KPIs Superiores */
-      .kpi-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-      .kpi-card { padding: 12px; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; text-align: center; }
-      .kpi-val { display: block; font-size: 1.4em; font-weight: bold; color: #00e676; }
-      .kpi-lab { font-size: 0.75em; color: #aaa; text-transform: uppercase; }
+      .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:6px; border-left:4px solid #0288d1; }
+      .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; }
+      
+      /* LUPA: Ajuste de altura a 210px para que el scroll aparezca al 2do vehículo */
+      .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
   <div style="width: 120px;"></div> 
   <div style="text-align: center;">
       <h1 style="color:#81d4fa; margin:0; font-size: 1.8em;">Planeador Logístico AKT</h1>
@@ -44,28 +36,9 @@
   <a href="/logout" class="btn-logout">❌ SALIR</a>
 </div>
 
-<div class="kpi-container">
-    <div class="kpi-card">
-        <span class="kpi-lab">Total Pendientes</span>
-        <span class="kpi-val">{{ total_pendientes }}</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-lab">Vehículos en Cola</span>
-        <span class="kpi-val" style="color: #81d4fa;">{{ vehiculos|length }}</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-lab">Espacio Ocupado</span>
-        <span class="kpi-val" style="color: #00e676;">{{ peso_total_flota }}</span>
-    </div>
-    <div class="kpi-card">
-        <span class="kpi-lab">Eficiencia Flota</span>
-        <span class="kpi-val" style="color: #ffd600;">
-            {% if total_capacidad_flota > 0 %}
-                {{ ((peso_total_flota / total_capacidad_flota) * 100)|round(1) }}%
-            {% else %} 0% {% endif %}
-        </span>
-    </div>
-</div>
+{% if session.mensaje %}
+<div id="msg" style="background:#d4edda; color:#155724; padding:12px; border-radius:6px; margin-bottom:20px; font-weight: bold;">{{ session.mensaje }}</div>
+{% endif %}
 
 <div class="top-row">
     <div class="panel">
@@ -87,14 +60,17 @@
       <h2>Motos por Ciudad (Desglosado)</h2>
       <div style="max-height: 550px; overflow-y: auto;">
         {% for ciudad, datos in conteo_detallado.items() %}
-          <div class="ciudad-item {% if ciudad in ciudades_especiales %}ciudad-especial{% endif %}">
+          {% set es_esp = ciudad in ciudades_especiales %}
+          <div class="ciudad-item {% if es_esp %}ciudad-especial{% endif %}">
             <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px;">
-                <span style="font-weight: bold;">{{ ciudad }}</span>
+                <span style="font-weight: bold; {% if es_esp %} color: #81d4fa; {% endif %}">{{ ciudad }}</span>
                 <strong>{{ datos.total }} unds</strong>
             </div>
             <div style="display: flex; gap: 15px; font-size: 0.8em;">
                 <span style="color: #00e676;">● {{ datos.normales }} Normales</span>
-                {% if datos.especiales > 0 %}<span style="color: #81d4fa;">● {{ datos.especiales }} Especiales</span>{% endif %}
+                {% if datos.especiales > 0 %}
+                <span style="color: #81d4fa; font-weight: bold;">● {{ datos.especiales }} Especiales</span>
+                {% endif %}
             </div>
           </div>
         {% endfor %}
@@ -116,7 +92,7 @@
             <option value="normales">Solo Normales</option>
             <option value="especiales">Solo Especiales</option>
         </select>
-        
+
         <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">
             ⚙️ Seleccionar Especiales ▾
         </button>
@@ -136,27 +112,22 @@
 
       {% if vehiculos %}
       <div style="margin-top:20px;">
-        <h3>Vehículos en Cola:</h3>
+        <h3 style="color: #81d4fa; font-size: 0.9em;">Vehículos en Cola de Despacho:</h3>
+        
         <div class="scroll-cola">
           {% for v in vehiculos %}
-            {% set peso_v = namespace(p=0) %}
-            {% for r in v.resumen_visual %}{% set peso_v.p = peso_v.p + r.peso_total %}{% endfor %}
-            {% set pct = (peso_v.p / v.cantidad_motos) * 100 %}
-            
-            <div class="card-v {% if pct > 100 %}v-rojo{% elif pct >= 90 %}v-verde{% elif pct >= 70 %}v-amarillo{% else %}v-rojo{% endif %}">
-              <div style="display:flex; justify-content:space-between; align-items: center;">
-                  <strong>{{ v.placa }}</strong> 
-                  <span style="font-size: 0.9em;">
-                    Uso: {{ peso_v.p }}/{{ v.cantidad_motos }} | 
-                    <strong style="color:{% if pct > 100 %}#ff5252{% else %}#00e676{% endif %};">{{ pct|round(1) }}%</strong>
-                  </span>
+            <div class="card-v">
+              <div style="display:flex; justify-content:space-between;">
+                  <div>
+                    <strong>{{ v.placa }}</strong> 
+                    <span style="color:#00e676; margin-left:10px;">Cap: {{ v.cantidad_motos }}</span>
+                  </div>
                   <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em;">[BORRAR]</a>
               </div>
               <p style="font-size:0.8em; color:#81d4fa; margin:5px 0;">📍 {{ v.ciudades|join(", ") }}</p>
-              
-              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">
+              <div style="display:flex; flex-wrap:wrap; gap:4px;">
                   {% for r in v.resumen_visual %}
-                  <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u - Peso: {{ r.peso_total }})</div>
+                  <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
                   {% endfor %}
               </div>
             </div>
@@ -166,6 +137,7 @@
       {% endif %}
     </div>
 </div>
+
 <script>
   setTimeout(() => { if(document.getElementById('msg')) document.getElementById('msg').remove(); }, 3500);
 </script>
