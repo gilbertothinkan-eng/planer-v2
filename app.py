@@ -9,10 +9,10 @@ app.secret_key = "gilberto_clave_super_secreta"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# USUARIOS PROTEGIDOS
+# 1. USUARIOS (Verificados)
 USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
 
-# TABLA DE PESOS (INTACTA)
+# 2. TABLA DE EQUIVALENCIAS (Intacta)
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -70,7 +70,8 @@ def dashboard():
     return render_template("dashboard.html", 
                            conteo_detallado=session.get("conteo_detallado", {}),
                            referencias=session.get("referencias_seleccionadas", {}),
-                           vehiculos=session.get("vehiculos", []))
+                           vehiculos=session.get("vehiculos", []),
+                           ciudades_especiales=session.get("ciudades_especiales", []))
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -81,7 +82,7 @@ def upload():
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{session['user_id']}_datos.pkl"))
     
-    # NUEVO: Conteo desglosado para la vista
+    # MEJORA: Conteo desglosado (Normales vs Especiales)
     conteo_det = {}
     ciudades_list = df["Descr EXXIT"].str.upper().unique()
     for c in ciudades_list:
@@ -91,13 +92,14 @@ def upload():
         conteo_det[c] = {"total": norm + esp, "normales": norm, "especiales": esp}
     
     session["conteo_detallado"] = conteo_det
+    session["ciudades_especiales"] = [c for c, v in conteo_det.items() if v["especiales"] > 0]
 
     refs = {}
     for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
         eq = get_equivalencia(cod)
         if eq > 1:
             refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
-    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo cargado"
+    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo analizado"
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
@@ -169,13 +171,23 @@ def generar_planeador():
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 hoja = _excel_safe_sheet_name(v["placa"])
-                enc = pd.DataFrame([{"Transportadora": v["transportadora"], "Conductor": v["conductor"], "Placa": v["placa"], "Capacidad": cap, "Ocupado": peso_final}])
+                
+                # REVISIÓN LUPA: Restauración de Porcentaje y Cabecera
+                porcentaje = f"{(peso_final / cap) * 100:.1f}%"
+                enc = pd.DataFrame([{
+                    "Transportadora": v["transportadora"], 
+                    "Conductor": v["conductor"], 
+                    "Placa": v["placa"], 
+                    "Capacidad": cap, 
+                    "Ocupado": peso_final,
+                    "Carga %": porcentaje
+                }])
                 enc.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
                 asignado[columnas].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
                 df_pend = df_pend.drop(asignado.index)
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="Planeador_AKT.xlsx")
+    return send_file(output, as_attachment=True, download_name="Planeador_AKT_Gilberto.xlsx")
 
 if __name__ == "__main__": app.run(debug=True)
