@@ -18,10 +18,10 @@
       .ciudad-item { padding:12px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; color: #00e676; font-weight: bold; }
-      .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
+      .scroll-cola { max-height: 400px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
 
-      /* Semáforo Visual en Borde */
-      .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; }
+      /* Semáforo Visual */
+      .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; transition: 0.3s; }
       .v-verde { border-left-color: #00e676; } 
       .v-amarillo { border-left-color: #ffd600; } 
       .v-rojo { border-left-color: #ff5252; }
@@ -46,35 +46,22 @@
 
 <div class="kpi-container">
     <div class="kpi-card">
-        <span class="kpi-lab">Total Unidades</span>
-        <span class="kpi-val">
-            {% set total_u = namespace(val=0) %}
-            {% for c, d in conteo_detallado.items() %}{% set total_u.val = total_u.val + d.total %}{% endfor %}
-            {{ total_u.val }}
-        </span>
+        <span class="kpi-lab">Total Pendientes</span>
+        <span class="kpi-val">{{ total_pendientes }}</span>
     </div>
     <div class="kpi-card">
         <span class="kpi-lab">Vehículos en Cola</span>
         <span class="kpi-val" style="color: #81d4fa;">{{ vehiculos|length }}</span>
     </div>
     <div class="kpi-card">
-        <span class="kpi-lab">Motos Asignadas</span>
-        <span class="kpi-val" style="color: #00e676;">
-            {% set asignadas = namespace(val=0) %}
-            {% for v in vehiculos %}{% for r in v.resumen_visual %}{% set asignadas.val = asignadas.val + r.cant %}{% endfor %}{% endfor %}
-            {{ asignadas.val }}
-        </span>
+        <span class="kpi-lab">Espacio Ocupado</span>
+        <span class="kpi-val" style="color: #00e676;">{{ peso_total_flota }}</span>
     </div>
     <div class="kpi-card">
-        <span class="kpi-lab">Eficiencia Promedio</span>
+        <span class="kpi-lab">Eficiencia Flota</span>
         <span class="kpi-val" style="color: #ffd600;">
-            {% if vehiculos %}
-                {% set ef_total = namespace(val=0) %}
-                {% for v in vehiculos %}
-                   {% set peso_v = namespace(p=0) %}{% for r in v.resumen_visual %}{% set peso_v.p = peso_v.p + r.peso_total %}{% endfor %}
-                   {% set ef_total.val = ef_total.val + (peso_v.p / v.cantidad_motos) %}
-                {% endfor %}
-                {{ ((ef_total.val / vehiculos|length) * 100)|round(1) }}%
+            {% if total_capacidad_flota > 0 %}
+                {{ ((peso_total_flota / total_capacidad_flota) * 100)|round(1) }}%
             {% else %} 0% {% endif %}
         </span>
     </div>
@@ -149,35 +136,29 @@
 
       {% if vehiculos %}
       <div style="margin-top:20px;">
-        <h3>Vehículos en Cola de Despacho:</h3>
+        <h3>Vehículos en Cola:</h3>
         <div class="scroll-cola">
           {% for v in vehiculos %}
             {% set peso_v = namespace(p=0) %}
             {% for r in v.resumen_visual %}{% set peso_v.p = peso_v.p + r.peso_total %}{% endfor %}
             {% set pct = (peso_v.p / v.cantidad_motos) * 100 %}
             
-            <div class="card-v {% if pct >= 90 %}v-verde{% elif pct >= 70 %}v-amarillo{% else %}v-rojo{% endif %}">
-              <div style="display:flex; justify-content:space-between;">
+            <div class="card-v {% if pct > 100 %}v-rojo{% elif pct >= 90 %}v-verde{% elif pct >= 70 %}v-amarillo{% else %}v-rojo{% endif %}">
+              <div style="display:flex; justify-content:space-between; align-items: center;">
                   <strong>{{ v.placa }}</strong> 
-                  <span style="font-size: 0.9em;">Cap: {{ v.cantidad_motos }} | <strong style="color:#00e676;">{{ pct|round(1) }}%</strong></span>
+                  <span style="font-size: 0.9em;">
+                    Uso: {{ peso_v.p }}/{{ v.cantidad_motos }} | 
+                    <strong style="color:{% if pct > 100 %}#ff5252{% else %}#00e676{% endif %};">{{ pct|round(1) }}%</strong>
+                  </span>
                   <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em;">[BORRAR]</a>
               </div>
               <p style="font-size:0.8em; color:#81d4fa; margin:5px 0;">📍 {{ v.ciudades|join(", ") }}</p>
               
               <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">
                   {% for r in v.resumen_visual %}
-                  <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
+                  <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u - Peso: {{ r.peso_total }})</div>
                   {% endfor %}
               </div>
-
-              {% if pct < 90 %}
-              <div style="background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; margin-top: 8px; font-size: 0.75em; color: #ffd600; border: 1px dashed #ffd600;">
-                💡 <strong>Sugerencia:</strong> Tienes espacio. Mira pedidos en: 
-                <span style="color:#ffd600;">
-                  {% for c, d in conteo_detallado.items() %}{% if d.total > 0 and loop.index < 4 %}{{ c }} {% endif %}{% endfor %}
-                </span>
-              </div>
-              {% endif %}
             </div>
           {% endfor %}
         </div>
