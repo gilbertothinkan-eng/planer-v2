@@ -11,22 +11,25 @@
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
       button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; }
+      .btn-logout { background: #d32f2f; color: white; padding: 10px 25px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em; border: 2px solid #b71c1c; transition: 0.3s; }
+      .btn-logout:hover { background: #ff5252; box-shadow: 0 0 15px rgba(255,82,82,0.4); }
       .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: 1px solid #444; cursor: pointer; margin-top: 10px; }
-      .accordion-content { display: none; background: #141414; border: 1px solid #444; border-top: none; }
+      .accordion-content { display: none; background: #141414; border: 1px solid #444; }
       .show { display: block !important; }
-      .ciudad-header { background: #263238; color: #81d4fa; padding: 8px 12px; font-weight: bold; font-size: 0.85em; display: flex; justify-content: space-between; }
-      .ref-row { padding: 6px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #222; align-items: center; }
-      .badge-qty { background: #00e676; color: #000; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 0.8em; }
+      .ciudad-row { padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items: center; }
+      .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
       .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:6px; border-left:4px solid #0288d1; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; }
     </style>
 </head>
 <body>
 
-<div style="text-align:center; position: relative; margin-bottom: 25px;">
-  <h1 style="color:#81d4fa; margin:0;">Planeador de Despacho - AKT Motos</h1>
-  <p style="color:#00e676; margin:5px;">By Gilberto Thinkan®</p>
-  <a href="/logout" style="position:absolute; top:0; right:0; color:#ff5252; text-decoration:none;">❌ Salir</a>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+  <div style="flex-grow: 1; text-align: center;">
+      <h1 style="color:#81d4fa; margin:0;">Planeador de Despacho - AKT Motos</h1>
+      <p style="color:#00e676; margin:5px;">By Gilberto Thinkan®</p>
+  </div>
+  <a href="/logout" class="btn-logout">❌ SALIR DEL SISTEMA</a>
 </div>
 
 {% if session.mensaje %}
@@ -53,8 +56,12 @@
       <h2>Motos por Ciudad (Estado 40)</h2>
       <div style="max-height: 500px; overflow-y: auto;">
         {% for ciudad, cantidad in ciudades.items() %}
-          <div style="padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
-            <span>{{ ciudad }}</span> <strong>{{ cantidad }} unds</strong>
+          {% set es_esp = ciudad in ciudades_especiales %}
+          <div class="ciudad-row {% if es_esp %}ciudad-especial{% endif %}">
+            <span style="{% if es_esp %} color: #81d4fa; font-weight: bold; {% endif %}">
+                {{ ciudad }} {% if es_esp %} <small style="color: #00e676;">(★ ESPECIALES)</small> {% endif %}
+            </span> 
+            <strong>{{ cantidad }} unds</strong>
           </div>
         {% endfor %}
       </div>
@@ -69,60 +76,44 @@
             <input type="text" name="transportadora" placeholder="Transportadora">
             <input type="text" name="conductor" placeholder="Conductor">
         </div>
-        <input type="text" name="ciudades" placeholder="Ciudades (Ej: CALI, BUGA)" required>
+        <input type="text" name="ciudades" placeholder="Ciudades (CALI, BUGA)" required>
         <select name="modo_carga">
             <option value="todas">Carga Mixta</option>
-            <option value="normales">Solo Normales (Peso 1)</option>
-            <option value="especiales">Solo Especiales (Peso > 1)</option>
+            <option value="normales">Solo Normales</option>
+            <option value="especiales">Solo Especiales</option>
         </select>
 
         <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">
             ⚙️ Configurar Especiales para este viaje ▾
         </button>
-        <div id="refs" class="accordion-content" style="max-height:250px; overflow-y:auto;">
+        <div id="refs" class="accordion-content" style="max-height:200px; overflow-y:auto;">
             {% for ciudad, refs in referencias.items() %}
-                <div class="ciudad-header">📍 {{ ciudad }} <span>CANT.</span></div>
+                <div style="background:#263238; color:#81d4fa; padding:5px 10px; font-size:0.8em;">📍 {{ ciudad }}</div>
                 {% for r in refs %}
-                <div class="ref-row">
-                    <label style="cursor:pointer; flex-grow: 1; font-size: 0.85em;">
-                        <input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> 
-                        {{ r.cod_int }} <span style="color:#81d4fa;">(x{{ r.equivalencia }})</span>
-                    </label>
-                    <span class="badge-qty">{{ r.cantidad }}</span>
+                <div style="padding:5px 15px; display:flex; justify-content:space-between; font-size:0.8em; border-bottom:1px solid #222;">
+                    <label><input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> {{ r.cod_int }}</label>
+                    <span style="color:#00e676;">{{ r.cantidad }}</span>
                 </div>
                 {% endfor %}
             {% endfor %}
         </div>
-
-        <button type="submit" style="margin-top:15px;">+ Agregar a la Planeación</button>
+        <button type="submit" style="margin-top:15px;">+ Agregar Vehículo</button>
       </form>
 
       {% if vehiculos %}
       <div style="margin-top:20px;">
-        <p style="color: #81d4fa; font-weight: bold; font-size: 0.9em;">Vehículos en cola:</p>
         {% for v in vehiculos %}
           <div class="card-v">
-            <div style="display: flex; justify-content: space-between; align-items: start;">
-                <div>
-                    <strong style="font-size: 1.1em; color:#fff;">{{ v.placa }}</strong>
-                    <span style="font-size:0.85em; color:#00e676; margin-left:12px;">Cap: {{ v.cantidad_motos }}</span>
-                    <p style="margin: 4px 0; font-size: 0.75em; color: #81d4fa;">Destino: {{ v.ciudades|join(", ") }}</p>
-                </div>
-                <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em; font-weight: bold;">[Eliminar]</a>
+            <div style="display:flex; justify-content:space-between;">
+                <strong>{{ v.placa }}</strong> <span>Cap: {{ v.cantidad_motos }}</span>
+                <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em;">[Eliminar]</a>
             </div>
-            
-            {% if v.resumen_visual %}
-            <div style="margin-top:10px; border-top:1px solid #444; padding-top:8px;">
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                    {% for r in v.resumen_visual %}
-                    <div class="tag-ref">
-                        <span style="color: #00e676; font-weight: bold;">{{ r.ciudad }}:</span> 
-                        {{ r.nombre }} | {{ r.cant }}u <span style="color:#81d4fa;">(P:{{ r.peso_total }})</span>
-                    </div>
-                    {% endfor %}
-                </div>
+            <p style="font-size:0.8em; color:#81d4fa; margin:5px 0;">Destino: {{ v.ciudades|join(", ") }}</p>
+            <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">
+                {% for r in v.resumen_visual %}
+                <div class="tag-ref">{{ r.ciudad }}: {{ r.nombre }} | {{ r.cant }}u (P:{{ r.peso_total }})</div>
+                {% endfor %}
             </div>
-            {% endif %}
           </div>
         {% endfor %}
       </div>
@@ -132,10 +123,6 @@
 
 <script>
   setTimeout(() => { if(document.getElementById('msg')) document.getElementById('msg').remove(); }, 3000);
-  {% if session.get('limpiar_form') %}
-    document.getElementById('formV').reset();
-    {% set _ = session.pop('limpiar_form', None) %}
-  {% endif %}
 </script>
 </body>
 </html>
