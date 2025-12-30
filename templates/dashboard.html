@@ -17,18 +17,14 @@
       .show { display: block !important; }
       .ciudad-item { padding:12px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
-      /* LUPA: Tag original restaurado exactamente como en image_b0e419.png */
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; color: #00e676; font-weight: bold; }
-      /* LUPA: Scroll ajustado para 2 vehículos según image_b1c267.png */
       .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
 
-      /* SEMÁFORO: Solo cambia el color del borde izquierdo */
       .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; }
       .v-verde { border-left-color: #00e676; } 
       .v-amarillo { border-left-color: #ffd600; } 
       .v-rojo { border-left-color: #ff5252; }
 
-      /* KPIs: Tablero profesional de 4 tarjetas */
       .kpi-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
       .kpi-card { padding: 12px; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; text-align: center; }
       .kpi-val { display: block; font-size: 1.4em; font-weight: bold; color: #00e676; }
@@ -71,12 +67,12 @@
         <span class="kpi-lab">Eficiencia Promedio</span>
         <span class="kpi-val" style="color: #ffd600;">
             {% if vehiculos %}
-                {% set ef = namespace(val=0) %}
+                {% set ef_total = namespace(val=0) %}
                 {% for v in vehiculos %}
-                   {% set peso = namespace(p=0) %}{% for r in v.resumen_visual %}{% set peso.p = peso.p + r.peso_total %}{% endfor %}
-                   {% set ef.val = ef.val + (peso.p / v.cantidad_motos) %}
+                   {% set peso_v = namespace(p=0) %}{% for r in v.resumen_visual %}{% set peso_v.p = peso_v.p + r.peso_total %}{% endfor %}
+                   {% set ef_total.val = ef_total.val + (peso_v.p / v.cantidad_motos) %}
                 {% endfor %}
-                {{ ((ef.val / vehiculos|length) * 100)|round(1) }}%
+                {{ ((ef_total.val / vehiculos|length) * 100)|round(1) }}%
             {% else %} 0% {% endif %}
         </span>
     </div>
@@ -146,7 +142,6 @@
                 {% endfor %}
             {% endfor %}
         </div>
-
         <button type="submit" style="margin-top:15px; background: #00897b;">+ Agregar Vehículo</button>
       </form>
 
@@ -172,13 +167,6 @@
                   <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
                   {% endfor %}
               </div>
-
-              {% if pct < 90 %}
-              <div style="background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; margin-top: 8px; font-size: 0.75em; color: #ffd600; border: 1px dashed #ffd600;">
-                💡 <strong>Sugerencia:</strong> Espacio disponible para: 
-                {% for c, d in conteo_detallado.items() %}{% if d.total > 0 and loop.index < 3 %}{{ c }}, {% endif %}{% endfor %}...
-              </div>
-              {% endif %}
             </div>
           {% endfor %}
         </div>
@@ -186,7 +174,6 @@
       {% endif %}
     </div>
 </div>
-
 <script>
   setTimeout(() => { if(document.getElementById('msg')) document.getElementById('msg').remove(); }, 3500);
 </script>
