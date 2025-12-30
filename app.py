@@ -11,7 +11,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
 
-# Diccionario de equivalencias original (Sin modificaciones)
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -69,7 +68,8 @@ def dashboard():
     return render_template("dashboard.html", 
                            ciudades=session.get("conteo_ciudades", {}),
                            referencias=session.get("referencias_seleccionadas", {}),
-                           vehiculos=session.get("vehiculos", []))
+                           vehiculos=session.get("vehiculos", []),
+                           ciudades_especiales=session.get("ciudades_especiales", []))
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -79,7 +79,11 @@ def upload():
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{session['user_id']}_datos.pkl"))
-    session["conteo_ciudades"] = dict(Counter(df["Descr EXXIT"].str.upper()))
+    
+    conteo = dict(Counter(df["Descr EXXIT"].str.upper()))
+    ciudades_especiales = df[df["peso_espacio"] > 1]["Descr EXXIT"].str.upper().unique().tolist()
+    session["ciudades_especiales"] = ciudades_especiales
+
     refs = {}
     for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
         eq = get_equivalencia(cod)
@@ -87,6 +91,7 @@ def upload():
             refs.setdefault(ciudad, []).append({
                 "cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq
             })
+    session["conteo_ciudades"] = conteo
     session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo cargado"
     return redirect(url_for("dashboard"))
 
@@ -94,22 +99,17 @@ def upload():
 def registrar_vehiculo():
     v_list = session.get("vehiculos", [])
     ciudades_input = [c.strip().upper() for c in request.form["ciudades"].split(",")]
-    refs_seleccionadas_ids = request.form.getlist("refs_especiales")
+    refs_ids = request.form.getlist("refs_especiales")
     
-    # Mejora: Filtrar solo lo que el usuario marcó para este vehículo y destino
     resumen_visual = []
     referencias_data = session.get("referencias_seleccionadas", {})
-    
     for ciudad, lista_refs in referencias_data.items():
-        if ciudad in ciudades_input: # Solo ciudades de este viaje
+        if ciudad in ciudades_input:
             for r in lista_refs:
-                identificador = f"{ciudad}_{r['cod_int']}"
-                if identificador in refs_seleccionadas_ids: # Solo si se marcó el check
+                if f"{ciudad}_{r['cod_int']}" in refs_ids:
                     resumen_visual.append({
-                        "ciudad": ciudad,
-                        "nombre": r['cod_int'],
-                        "cant": r['cantidad'],
-                        "peso_total": r['cantidad'] * r['equivalencia']
+                        "ciudad": ciudad, "nombre": r['cod_int'],
+                        "cant": r['cantidad'], "peso_total": r['cantidad'] * r['equivalencia']
                     })
 
     v_list.append({
@@ -119,10 +119,10 @@ def registrar_vehiculo():
         "cantidad_motos": int(request.form["cantidad_motos"]),
         "ciudades": ciudades_input,
         "modo_carga": request.form.get("modo_carga", "todas"),
-        "refs_permitidas": refs_seleccionadas_ids,
+        "refs_permitidas": refs_ids,
         "resumen_visual": resumen_visual
     })
-    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo agregado", True
+    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo registrado", True
     return redirect(url_for("dashboard"))
 
 @app.route("/eliminar_vehiculo/<int:indice>")
