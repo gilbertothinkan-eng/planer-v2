@@ -11,23 +11,31 @@
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; }
       button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
       .btn-generate { background: #0288d1; height: 100%; font-size: 1.2em; border: 2px solid #01579b; }
-      .btn-logout { background: #d32f2f; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #b71c1c; transition: 0.3s; }
-      .btn-logout:hover { background: #ff5252; }
+      .btn-logout { background: #d32f2f; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #b71c1c; }
       .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 10px; border: 1px solid #444; cursor: pointer; margin-top: 10px; }
       .accordion-content { display: none; background: #141414; border: 1px solid #444; }
       .show { display: block !important; }
       .ciudad-item { padding:12px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
-      .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:6px; border-left:4px solid #0288d1; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; }
-      
-      /* LUPA: Ajuste de altura a 210px para que el scroll aparezca al 2do vehículo */
       .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
+
+      /* MEJORA 1: Semáforo Visual */
+      .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; }
+      .v-verde { border-left-color: #00e676; background: #1b2e25; } /* >90% */
+      .v-amarillo { border-left-color: #ffd600; background: #2e2d1b; } /* >70% */
+      .v-rojo { border-left-color: #ff5252; background: #2e1b1b; } /* <70% */
+
+      /* MEJORA 3: Estilos Tablero KPI */
+      .kpi-container { display: flex; gap: 15px; margin-bottom: 20px; }
+      .kpi-card { flex: 1; padding: 15px; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; text-align: center; }
+      .kpi-val { display: block; font-size: 1.5em; font-weight: bold; color: #00e676; }
+      .kpi-lab { font-size: 0.8em; color: #aaa; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
   <div style="width: 120px;"></div> 
   <div style="text-align: center;">
       <h1 style="color:#81d4fa; margin:0; font-size: 1.8em;">Planeador Logístico AKT</h1>
@@ -36,9 +44,33 @@
   <a href="/logout" class="btn-logout">❌ SALIR</a>
 </div>
 
-{% if session.mensaje %}
-<div id="msg" style="background:#d4edda; color:#155724; padding:12px; border-radius:6px; margin-bottom:20px; font-weight: bold;">{{ session.mensaje }}</div>
-{% endif %}
+<div class="kpi-container">
+    <div class="kpi-card">
+        <span class="kpi-lab">Total Unidades</span>
+        <span class="kpi-val">
+            {% set total_u = namespace(val=0) %}
+            {% for c, d in conteo_detallado.items() %}{% set total_u.val = total_u.val + d.total %}{% endfor %}
+            {{ total_u.val }}
+        </span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-lab">Vehículos en Cola</span>
+        <span class="kpi-val" style="color: #81d4fa;">{{ vehiculos|length }}</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-lab">Eficiencia Promedio</span>
+        <span class="kpi-val" style="color: #ffd600;">
+            {% if vehiculos %}
+                {% set ef = namespace(val=0) %}
+                {% for v in vehiculos %}
+                   {% set peso = namespace(p=0) %}{% for r in v.resumen_visual %}{% set peso.p = peso.p + r.peso_total %}{% endfor %}
+                   {% set ef.val = ef.val + (peso.p / v.cantidad_motos) %}
+                {% endfor %}
+                {{ ((ef.val / vehiculos|length) * 100)|round(1) }}%
+            {% else %} 0% {% endif %}
+        </span>
+    </div>
+</div>
 
 <div class="top-row">
     <div class="panel">
@@ -58,19 +90,12 @@
 <div class="main-grid">
     <div class="panel">
       <h2>Motos por Ciudad (Desglosado)</h2>
-      <div style="max-height: 550px; overflow-y: auto;">
+      <div style="max-height: 500px; overflow-y: auto;">
         {% for ciudad, datos in conteo_detallado.items() %}
-          {% set es_esp = ciudad in ciudades_especiales %}
-          <div class="ciudad-item {% if es_esp %}ciudad-especial{% endif %}">
-            <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px;">
-                <span style="font-weight: bold; {% if es_esp %} color: #81d4fa; {% endif %}">{{ ciudad }}</span>
+          <div class="ciudad-item {% if ciudad in ciudades_especiales %}ciudad-especial{% endif %}">
+            <div style="display:flex; justify-content:space-between; align-items: center;">
+                <span style="font-weight: bold;">{{ ciudad }}</span>
                 <strong>{{ datos.total }} unds</strong>
-            </div>
-            <div style="display: flex; gap: 15px; font-size: 0.8em;">
-                <span style="color: #00e676;">● {{ datos.normales }} Normales</span>
-                {% if datos.especiales > 0 %}
-                <span style="color: #81d4fa; font-weight: bold;">● {{ datos.especiales }} Especiales</span>
-                {% endif %}
             </div>
           </div>
         {% endfor %}
@@ -86,50 +111,39 @@
             <input type="text" name="transportadora" placeholder="Transportadora">
             <input type="text" name="conductor" placeholder="Conductor">
         </div>
-        <input type="text" name="ciudades" placeholder="Ciudades (CALI, BUGA)" required>
+        <input type="text" name="ciudades" placeholder="Ciudades (Separadas por coma)" required>
         <select name="modo_carga">
             <option value="todas">Carga Mixta (Todo)</option>
             <option value="normales">Solo Normales</option>
             <option value="especiales">Solo Especiales</option>
         </select>
-
-        <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">
-            ⚙️ Seleccionar Especiales ▾
-        </button>
-        <div id="refs" class="accordion-content" style="max-height:180px; overflow-y:auto;">
-            {% for ciudad, refs in referencias.items() %}
-                <div style="background:#263238; color:#81d4fa; padding:5px 10px; font-size:0.8em;">📍 {{ ciudad }}</div>
-                {% for r in refs %}
-                <div style="padding:5px 15px; display:flex; justify-content:space-between; font-size:0.8em; border-bottom:1px solid #222;">
-                    <label><input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> {{ r.cod_int }}</label>
-                    <span style="color:#00e676;">{{ r.cantidad }} disp.</span>
-                </div>
-                {% endfor %}
-            {% endfor %}
-        </div>
-        <button type="submit" style="margin-top:15px; background: #00897b;">+ Agregar Vehículo</button>
+        <button type="submit" style="margin-top:10px; background: #00897b;">+ Agregar Vehículo</button>
       </form>
 
       {% if vehiculos %}
       <div style="margin-top:20px;">
-        <h3 style="color: #81d4fa; font-size: 0.9em;">Vehículos en Cola de Despacho:</h3>
-        
+        <h3>Vehículos en Cola:</h3>
         <div class="scroll-cola">
           {% for v in vehiculos %}
-            <div class="card-v">
+            {% set peso_v = namespace(p=0) %}
+            {% for r in v.resumen_visual %}{% set peso_v.p = peso_v.p + r.peso_total %}{% endfor %}
+            {% set pct = (peso_v.p / v.cantidad_motos) * 100 %}
+            
+            <div class="card-v {% if pct >= 90 %}v-verde{% elif pct >= 70 %}v-amarillo{% else %}v-rojo{% endif %}">
               <div style="display:flex; justify-content:space-between;">
-                  <div>
-                    <strong>{{ v.placa }}</strong> 
-                    <span style="color:#00e676; margin-left:10px;">Cap: {{ v.cantidad_motos }}</span>
-                  </div>
-                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em;">[BORRAR]</a>
+                  <strong>{{ v.placa }}</strong> 
+                  <span>Eficiencia: <strong>{{ pct|round(1) }}%</strong></span>
+                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none;">[X]</a>
               </div>
-              <p style="font-size:0.8em; color:#81d4fa; margin:5px 0;">📍 {{ v.ciudades|join(", ") }}</p>
-              <div style="display:flex; flex-wrap:wrap; gap:4px;">
-                  {% for r in v.resumen_visual %}
-                  <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
-                  {% endfor %}
+              
+              {% if pct < 90 %}
+              <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; margin-top: 8px; font-size: 0.75em; border: 1px dashed #ffd600;">
+                💡 <strong>Sugerencia:</strong> Te queda espacio. Mira pedidos en: 
+                <span style="color:#ffd600;">
+                  {% for c, d in conteo_detallado.items() %}{% if d.total > 0 and loop.index < 4 %}{{ c }} {% endif %}{% endfor %}
+                </span>
               </div>
+              {% endif %}
             </div>
           {% endfor %}
         </div>
@@ -137,9 +151,5 @@
       {% endif %}
     </div>
 </div>
-
-<script>
-  setTimeout(() => { if(document.getElementById('msg')) document.getElementById('msg').remove(); }, 3500);
-</script>
 </body>
 </html>
