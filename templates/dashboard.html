@@ -17,20 +17,22 @@
       .show { display: block !important; }
       .ciudad-item { padding:12px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
-      .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; }
+      /* LUPA: Tag original restaurado exactamente como en image_b0e419.png */
+      .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; color: #00e676; font-weight: bold; }
+      /* LUPA: Scroll ajustado para 2 vehículos según image_b1c267.png */
       .scroll-cola { max-height: 210px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
 
-      /* MEJORA 1: Semáforo Visual */
+      /* SEMÁFORO: Solo cambia el color del borde izquierdo */
       .card-v { padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #444; background:#252525; }
-      .v-verde { border-left-color: #00e676; background: #1b2e25; } /* >90% */
-      .v-amarillo { border-left-color: #ffd600; background: #2e2d1b; } /* >70% */
-      .v-rojo { border-left-color: #ff5252; background: #2e1b1b; } /* <70% */
+      .v-verde { border-left-color: #00e676; } 
+      .v-amarillo { border-left-color: #ffd600; } 
+      .v-rojo { border-left-color: #ff5252; }
 
-      /* MEJORA 3: Estilos Tablero KPI */
-      .kpi-container { display: flex; gap: 15px; margin-bottom: 20px; }
-      .kpi-card { flex: 1; padding: 15px; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; text-align: center; }
-      .kpi-val { display: block; font-size: 1.5em; font-weight: bold; color: #00e676; }
-      .kpi-lab { font-size: 0.8em; color: #aaa; text-transform: uppercase; }
+      /* KPIs: Tablero profesional de 4 tarjetas */
+      .kpi-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+      .kpi-card { padding: 12px; background: #1e1e1e; border: 1px solid #333; border-radius: 10px; text-align: center; }
+      .kpi-val { display: block; font-size: 1.4em; font-weight: bold; color: #00e676; }
+      .kpi-lab { font-size: 0.75em; color: #aaa; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -56,6 +58,14 @@
     <div class="kpi-card">
         <span class="kpi-lab">Vehículos en Cola</span>
         <span class="kpi-val" style="color: #81d4fa;">{{ vehiculos|length }}</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-lab">Motos Asignadas</span>
+        <span class="kpi-val" style="color: #00e676;">
+            {% set asignadas = namespace(val=0) %}
+            {% for v in vehiculos %}{% for r in v.resumen_visual %}{% set asignadas.val = asignadas.val + r.cant %}{% endfor %}{% endfor %}
+            {{ asignadas.val }}
+        </span>
     </div>
     <div class="kpi-card">
         <span class="kpi-lab">Eficiencia Promedio</span>
@@ -90,12 +100,16 @@
 <div class="main-grid">
     <div class="panel">
       <h2>Motos por Ciudad (Desglosado)</h2>
-      <div style="max-height: 500px; overflow-y: auto;">
+      <div style="max-height: 550px; overflow-y: auto;">
         {% for ciudad, datos in conteo_detallado.items() %}
           <div class="ciudad-item {% if ciudad in ciudades_especiales %}ciudad-especial{% endif %}">
-            <div style="display:flex; justify-content:space-between; align-items: center;">
+            <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px;">
                 <span style="font-weight: bold;">{{ ciudad }}</span>
                 <strong>{{ datos.total }} unds</strong>
+            </div>
+            <div style="display: flex; gap: 15px; font-size: 0.8em;">
+                <span style="color: #00e676;">● {{ datos.normales }} Normales</span>
+                {% if datos.especiales > 0 %}<span style="color: #81d4fa;">● {{ datos.especiales }} Especiales</span>{% endif %}
             </div>
           </div>
         {% endfor %}
@@ -111,18 +125,34 @@
             <input type="text" name="transportadora" placeholder="Transportadora">
             <input type="text" name="conductor" placeholder="Conductor">
         </div>
-        <input type="text" name="ciudades" placeholder="Ciudades (Separadas por coma)" required>
+        <input type="text" name="ciudades" placeholder="Ciudades (CALI, BUGA)" required>
         <select name="modo_carga">
             <option value="todas">Carga Mixta (Todo)</option>
             <option value="normales">Solo Normales</option>
             <option value="especiales">Solo Especiales</option>
         </select>
-        <button type="submit" style="margin-top:10px; background: #00897b;">+ Agregar Vehículo</button>
+        
+        <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">
+            ⚙️ Seleccionar Especiales ▾
+        </button>
+        <div id="refs" class="accordion-content" style="max-height:180px; overflow-y:auto;">
+            {% for ciudad, refs in referencias.items() %}
+                <div style="background:#263238; color:#81d4fa; padding:5px 10px; font-size:0.8em;">📍 {{ ciudad }}</div>
+                {% for r in refs %}
+                <div style="padding:5px 15px; display:flex; justify-content:space-between; font-size:0.8em; border-bottom:1px solid #222;">
+                    <label><input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> {{ r.cod_int }}</label>
+                    <span style="color:#00e676;">{{ r.cantidad }} disp.</span>
+                </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <button type="submit" style="margin-top:15px; background: #00897b;">+ Agregar Vehículo</button>
       </form>
 
       {% if vehiculos %}
       <div style="margin-top:20px;">
-        <h3>Vehículos en Cola:</h3>
+        <h3>Vehículos en Cola de Despacho:</h3>
         <div class="scroll-cola">
           {% for v in vehiculos %}
             {% set peso_v = namespace(p=0) %}
@@ -132,16 +162,21 @@
             <div class="card-v {% if pct >= 90 %}v-verde{% elif pct >= 70 %}v-amarillo{% else %}v-rojo{% endif %}">
               <div style="display:flex; justify-content:space-between;">
                   <strong>{{ v.placa }}</strong> 
-                  <span>Eficiencia: <strong>{{ pct|round(1) }}%</strong></span>
-                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none;">[X]</a>
+                  <span style="font-size: 0.9em;">Cap: {{ v.cantidad_motos }} | <strong style="color:#00e676;">{{ pct|round(1) }}%</strong></span>
+                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-size:0.8em;">[BORRAR]</a>
               </div>
+              <p style="font-size:0.8em; color:#81d4fa; margin:5px 0;">📍 {{ v.ciudades|join(", ") }}</p>
               
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">
+                  {% for r in v.resumen_visual %}
+                  <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
+                  {% endfor %}
+              </div>
+
               {% if pct < 90 %}
-              <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; margin-top: 8px; font-size: 0.75em; border: 1px dashed #ffd600;">
-                💡 <strong>Sugerencia:</strong> Te queda espacio. Mira pedidos en: 
-                <span style="color:#ffd600;">
-                  {% for c, d in conteo_detallado.items() %}{% if d.total > 0 and loop.index < 4 %}{{ c }} {% endif %}{% endfor %}
-                </span>
+              <div style="background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; margin-top: 8px; font-size: 0.75em; color: #ffd600; border: 1px dashed #ffd600;">
+                💡 <strong>Sugerencia:</strong> Espacio disponible para: 
+                {% for c, d in conteo_detallado.items() %}{% if d.total > 0 and loop.index < 3 %}{{ c }}, {% endif %}{% endfor %}...
               </div>
               {% endif %}
             </div>
@@ -151,5 +186,9 @@
       {% endif %}
     </div>
 </div>
+
+<script>
+  setTimeout(() => { if(document.getElementById('msg')) document.getElementById('msg').remove(); }, 3500);
+</script>
 </body>
 </html>
