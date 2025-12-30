@@ -17,59 +17,69 @@
       .show { display: block !important; }
       .ciudad-item { padding:12px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
-      .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:6px; border-left:6px solid #ff9800; }
+      .card-v { background:#252525; padding:12px; margin-top:10px; border-radius:4px; border-left:4px solid #ff9800; position: relative; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:4px 8px; border-radius:4px; font-size:0.75em; color: #00e676; }
-      /* AQUÍ ESTÁ EL SCROLL QUE FALTABA */
-      .scroll-cola { max-height: 450px; overflow-y: auto; padding-right: 10px; margin-top: 15px; border-top: 1px solid #333; }
+      
+      /* 1. SCROLL DEFINIDO SEGÚN TU IMAGEN */
+      .scroll-cola { 
+        max-height: 250px; /* Ajustado para que se vea igual a la imagen */
+        overflow-y: auto; 
+        padding-right: 5px; 
+        margin-top: 10px; 
+      }
+      /* Estilo del scrollbar para que sea discreto como en tu captura */
+      .scroll-cola::-webkit-scrollbar { width: 8px; }
+      .scroll-cola::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333;">
-  <div style="width: 120px;"></div> 
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #1e1e1e; padding: 10px; border-radius: 8px;">
+  <div style="width: 100px;"></div> 
   <div style="text-align: center;">
-      <h1 style="color:#81d4fa; margin:0; font-size: 1.8em;">Planeador Logístico AKT</h1>
-      <p style="color:#00e676; margin:5px; font-weight: bold;">By Gilberto Thinkan®</p>
+      <h2 style="color:#81d4fa; margin:0;">Planeador Logístico AKT</h2>
+      <p style="color:#00e676; margin:0; font-size: 0.8em; font-weight: bold;">By Gilberto Thinkan®</p>
   </div>
-  <a href="/logout" class="btn-logout">❌ SALIR</a>
+  <a href="/logout" class="btn-logout" style="padding: 5px 15px; font-size: 0.8em;">❌ SALIR</a>
 </div>
 
 <div class="top-row">
     <div class="panel">
-      <h2>1. Cargar Informe</h2>
+      <h3 style="margin-top:0;">1. Cargar Informe</h3>
       <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; gap:10px;">
           <input type="file" name="file" required>
-          <button type="submit" style="width:auto;">Analizar Archivo</button>
+          <button type="submit" style="width:auto; background:#00695c;">Analizar Archivo</button>
       </form>
     </div>
-    <div class="panel">
-      <form action="/generar_planeador" method="POST">
+    
+    <div class="panel" style="text-align:center; display:flex; flex-direction:column; justify-content:center;">
+      <form action="/generar_planeador" method="POST" style="margin-bottom:5px;">
         <button type="submit" class="btn-generate">📦 GENERAR REPORTE EXCEL</button>
       </form>
-      <a href="/limpiar_cola" style="display:block; text-align:center; color:#aaa; font-size:0.8em; margin-top:10px; text-decoration:none;">[Limpiar cola de vehículos]</a>
+      <a href="/limpiar_cola" style="color: #888; font-size: 0.7em; text-decoration: none;">[Limpiar cola de vehículos]</a>
     </div>
 </div>
 
 <div class="main-grid">
     <div class="panel">
-      <h2>Motos Disponibles (Estado 40)</h2>
-      <div style="max-height: 550px; overflow-y: auto;">
+      <h3 style="margin-top:0;">Motos Disponibles (Estado 40)</h3>
+      <div style="max-height: 400px; overflow-y: auto;">
         {% for ciudad, datos in conteo_detallado.items() %}
-          <div class="ciudad-item {% if ciudad in ciudades_especiales %}ciudad-especial{% endif %}">
-            <div style="display:flex; justify-content:space-between;">
-                <strong>{{ ciudad }}</strong>
-                <span>{{ datos.total }} unds</span>
+          <div class="ciudad-item {% if ciudad in ciudades_especiales %}ciudad-especial{% endif %}" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong style="font-size:0.9em;">{{ ciudad }}</strong><br>
+                <small style="color:#aaa; font-size:0.7em;">Normales: {{ datos.normales }} | Especiales: {{ datos.especiales }}</small>
             </div>
-            <small style="color:#aaa;">Normales: {{ datos.normales }} | Especiales: {{ datos.especiales }}</small>
+            <span style="font-size:0.9em;">{{ datos.total }} unds</span>
           </div>
         {% endfor %}
       </div>
     </div>
 
     <div class="panel">
-      <h2>Programar Viaje</h2>
+      <h3 style="margin-top:0;">Programar Viaje</h3>
       <form action="/registrar_vehiculo" method="POST">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
             <input type="text" name="placa" placeholder="Placa" required>
             <input type="number" name="cantidad_motos" placeholder="Capacidad" required>
             <input type="text" name="transportadora" placeholder="Transportadora">
@@ -81,45 +91,42 @@
             <option value="normales">Solo Normales</option>
             <option value="especiales">Solo Especiales</option>
         </select>
-        <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')">⚙️ Seleccionar Referencias Especiales ▾</button>
+        <button type="button" class="accordion-button" onclick="document.getElementById('refs').classList.toggle('show')" style="font-size:0.8em;">⚙️ Seleccionar Referencias Especiales ▾</button>
         <div id="refs" class="accordion-content">
             {% for ciudad, refs in referencias.items() %}
                 {% for r in refs %}
-                <div style="padding:5px 15px; font-size:0.8em; border-bottom:1px solid #222;">
+                <div style="padding:5px 10px; font-size:0.75em; border-bottom:1px solid #222;">
                     <label><input type="checkbox" name="refs_especiales" value="{{ ciudad }}_{{ r.cod_int }}" checked> {{ ciudad }} - {{ r.cod_int }} ({{ r.cantidad }}u)</label>
                 </div>
                 {% endfor %}
             {% endfor %}
         </div>
-        <button type="submit" style="margin-top:15px;">+ Agregar Vehículo</button>
+        <button type="submit" style="margin-top:10px; background:#00695c; font-size:0.9em;">+ Agregar Vehículo</button>
       </form>
 
-      {% if vehiculos %}
+      <h4 style="margin: 15px 0 5px 0; font-size:0.9em;">Vehículos en Cola:</h4>
       <div class="scroll-cola">
-          <h3>Vehículos en Cola:</h3>
           {% for v in vehiculos %}
             <div class="card-v">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong>{{ v.placa }}</strong> 
-                  <span style="font-size: 0.9em; color: #81d4fa;">Cap: {{ v.cantidad_motos }}</span>
-                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none;">[X]</a>
+                  <strong style="font-size:0.9em; color:#ff9800;">{{ v.placa }}</strong> 
+                  <span style="font-size: 0.75em; color: #81d4fa;">Cap: {{ v.cantidad_motos }}</span>
+                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-weight:bold; font-size:0.8em;">[X]</a>
               </div>
-              <p style="font-size:0.8em; color:#aaa; margin:5px 0;">📍 {{ v.ciudades|join(", ") }}</p>
+              <p style="font-size:0.7em; color:#aaa; margin:3px 0;">📍 {{ v.ciudades|join(", ") }}</p>
               
-              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">
                   {% for r in v.resumen_visual %}
-                    <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
+                    <div class="tag-ref" style="font-size:0.65em;">{{ r.nombre }} ({{ r.cant }}u)</div>
                   {% endfor %}
               </div>
             </div>
           {% endfor %}
       </div>
-      {% endif %}
     </div>
 </div>
 
 <script>
-    // Script para el acordeón
     function toggleAccordion() {
         document.getElementById('refs').classList.toggle('show');
     }
