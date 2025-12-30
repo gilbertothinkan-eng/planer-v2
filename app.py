@@ -9,7 +9,10 @@ app.secret_key = "gilberto_clave_super_secreta"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Diccionario de equivalencias intacto
+# USUARIOS PROTEGIDOS
+USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
+
+# TABLA DE PESOS (INTACTA)
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -51,7 +54,7 @@ def login():
         if user in USUARIOS_AUTORIZADOS and USUARIOS_AUTORIZADOS[user] == password:
             session.clear()
             session["usuario"], session["user_id"] = user, str(uuid.uuid4())
-            session["vehiculos"], session["conteo_ciudades"], session["referencias_seleccionadas"] = [], {}, {}
+            session["vehiculos"] = []
             return redirect(url_for("dashboard"))
         return render_template("login.html", error="❌ Acceso Denegado")
     return render_template("login.html")
@@ -67,8 +70,7 @@ def dashboard():
     return render_template("dashboard.html", 
                            conteo_detallado=session.get("conteo_detallado", {}),
                            referencias=session.get("referencias_seleccionadas", {}),
-                           vehiculos=session.get("vehiculos", []),
-                           ciudades_especiales=session.get("ciudades_especiales", []))
+                           vehiculos=session.get("vehiculos", []))
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -79,25 +81,23 @@ def upload():
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{session['user_id']}_datos.pkl"))
     
-    # Mejora: Conteo desglosado (Normales vs Especiales)
-    conteo_detallado = {}
-    ciudades = df["Descr EXXIT"].str.upper().unique()
-    for ciudad in ciudades:
-        df_c = df[df["Descr EXXIT"].str.upper() == ciudad]
+    # NUEVO: Conteo desglosado para la vista
+    conteo_det = {}
+    ciudades_list = df["Descr EXXIT"].str.upper().unique()
+    for c in ciudades_list:
+        df_c = df[df["Descr EXXIT"].str.upper() == c]
         norm = int(len(df_c[df_c["peso_espacio"] == 1]))
         esp = int(len(df_c[df_c["peso_espacio"] > 1]))
-        conteo_detallado[ciudad] = {"total": norm + esp, "normales": norm, "especiales": esp}
+        conteo_det[c] = {"total": norm + esp, "normales": norm, "especiales": esp}
     
-    session["conteo_detallado"] = conteo_detallado
-    session["ciudades_especiales"] = [c for c, v in conteo_detallado.items() if v["especiales"] > 0]
+    session["conteo_detallado"] = conteo_det
 
     refs = {}
     for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
         eq = get_equivalencia(cod)
         if eq > 1:
             refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
-    
-    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo analizado con éxito"
+    session["referencias_seleccionadas"], session["mensaje"] = refs, "✅ Archivo cargado"
     return redirect(url_for("dashboard"))
 
 @app.route("/registrar_vehiculo", methods=["POST"])
@@ -127,7 +127,7 @@ def registrar_vehiculo():
         "refs_permitidas": refs_ids,
         "resumen_visual": resumen_visual
     })
-    session["vehiculos"], session.modified, session["mensaje"], session["limpiar_form"] = v_list, True, "✅ Vehículo agregado", True
+    session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
     return redirect(url_for("dashboard"))
 
 @app.route("/eliminar_vehiculo/<int:indice>")
@@ -176,6 +176,6 @@ def generar_planeador():
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="Planeador_AKT_Gilberto.xlsx")
+    return send_file(output, as_attachment=True, download_name="Planeador_AKT.xlsx")
 
 if __name__ == "__main__": app.run(debug=True)
