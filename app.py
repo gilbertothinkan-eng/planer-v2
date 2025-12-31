@@ -65,8 +65,6 @@ def _actualizar_estado_inventario(df, user_id):
             refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
     session["referencias_seleccionadas"] = refs
     
-    # --- ACTUALIZAR KPIs DE INVENTARIO ---
-    # Inv. Físico usa la foto estática del inicio. Inv. Equivalente sigue siendo lo disponible.
     session["kpi_fisico"] = session.get("kpi_inv_fisico_estatico", int(len(df)))
     session["kpi_equivalente"] = int(df["peso_espacio"].sum())
 
@@ -95,11 +93,19 @@ def logout():
 @app.route("/dashboard")
 def dashboard():
     if "usuario" not in session: return redirect(url_for("login"))
+    
+    # Cálculo de porcentaje de inventario equivalente disponible
+    total_e_ini = session.get("total_equivalente_inicial", 1)
+    e_actual = session.get("kpi_equivalente", 0)
+    equiv_porc = int((e_actual / total_e_ini) * 100) if total_e_ini > 0 else 0
+
     return render_template("dashboard.html", 
                            conteo_detallado=session.get("conteo_detallado", {}),
                            referencias=session.get("referencias_seleccionadas", {}),
                            vehiculos=session.get("vehiculos", []),
-                           ciudades_especiales=session.get("ciudades_especiales", []))
+                           ciudades_especiales=session.get("ciudades_especiales", []),
+                           eficiencia=session.get("kpi_eficiencia", 0),
+                           equiv_porc=equiv_porc)
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -109,7 +115,6 @@ def upload():
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     
-    # MEJORA: Foto estática del inventario inicial (No cambiará al generar reportes)
     session["kpi_inv_fisico_estatico"] = int(len(df))
     session["total_equivalente_inicial"] = int(df["peso_espacio"].sum())
     
@@ -237,11 +242,9 @@ def generar_planeador():
                 v["procesado"] = True
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
 
-    # --- ACTUALIZAR ACUMULADOS EN SESIÓN ---
     session["kpi_despacho_f"] = session.get("kpi_despacho_f", 0) + total_despacho_fisico
     session["kpi_despacho_e"] = session.get("kpi_despacho_e", 0) + total_despacho_equivalente
     
-    # MEJORA: Eficiencia basada estrictamente en unidades Físicas Despachadas vs Inventario Inicial Físico
     inv_inicial_f = session.get("kpi_inv_fisico_estatico", 0)
     if inv_inicial_f > 0:
         session["kpi_eficiencia"] = int((session["kpi_despacho_f"] / inv_inicial_f) * 100)
