@@ -141,6 +141,7 @@ def editar_vehiculo():
         v_list[indice]["transportadora"] = request.form.get("transportadora")
         v_list[indice]["conductor"] = request.form.get("conductor")
         v_list[indice]["ciudades"] = [c.strip().upper() for c in request.form.get("ciudades").split(",")]
+        v_list[indice]["modo_carga"] = request.form.get("modo_carga")
         session["vehiculos"] = v_list
         session.modified = True
     return redirect(url_for("dashboard"))
