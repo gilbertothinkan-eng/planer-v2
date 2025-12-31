@@ -61,7 +61,6 @@
       .neon-celeste { border-color: #81d4fa !important; box-shadow: 0 0 10px rgba(129, 212, 250, 0.2); color: #81d4fa; }
       .neon-verde { border-color: #00e676 !important; box-shadow: 0 0 10px rgba(0, 230, 118, 0.2); color: #00e676; }
 
-      /* ESTILO VENTANITA MODAL */
       .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
       .modal-content { background: #1e1e1e; margin: 5% auto; padding: 20px; border: 1px solid #81d4fa; width: 400px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
     </style>
@@ -82,10 +81,15 @@
         <label>Inv. Físico</label>
         <span>{{ session.get('kpi_fisico', 0) }}</span>
     </div>
+    
     <div class="kpi-card neon-blanco">
         <label>Inv. Equivalente</label>
         <span>{{ session.get('kpi_equivalente', 0) }}</span>
+        <div style="width: 80%; background: #333; height: 5px; border-radius: 3px; margin: 5px auto; overflow: hidden;">
+            <div style="width: {{ equiv_porc }}%; height: 100%; background: #fff; box-shadow: 0 0 5px #fff;"></div>
+        </div>
     </div>
+
     <div class="kpi-card neon-amarillo">
         <label>Viajes Prog.</label>
         <span>{{ session.get('kpi_viajes', 0) }}</span>
@@ -98,10 +102,20 @@
         <label>Desp. Equiv.</label>
         <span>{{ session.get('kpi_despacho_e', 0) }}</span>
     </div>
-    <div class="kpi-card neon-verde">
+
+    <div class="kpi-card" style="border: 2px solid {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
         <label>Eficiencia %</label>
-        <span>{{ session.get('kpi_eficiencia', 0) }}%</span>
+        <span style="color: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
+            {{ eficiencia }}%
+        </span>
+        <div style="width: 85%; background: #222; height: 6px; border-radius: 3px; margin: 5px auto; overflow: hidden;">
+            <div style="width: {{ eficiencia }}%; height: 100%; background: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %}; box-shadow: 0 0 8px {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};"></div>
+        </div>
+        <div style="font-size: 0.5em; font-weight: bold; color: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
+            {% if eficiencia < 31 %}Apenas iniciando{% elif eficiencia < 75 %}En proceso{% else %}¡Día exitoso!{% endif %}
+        </div>
     </div>
+
     <div class="kpi-card neon-azul" style="flex: 2; text-align: left; padding-left: 15px;">
         <label>🏆 Top 5 Ciudades Despachadas</label>
         <div style="font-size: 0.75em; margin-top: 5px; color: #e0e0e0;">
