@@ -94,7 +94,6 @@ def logout():
 def dashboard():
     if "usuario" not in session: return redirect(url_for("login"))
     
-    # Cálculo de porcentaje de inventario equivalente disponible
     total_e_ini = session.get("total_equivalente_inicial", 1)
     e_actual = session.get("kpi_equivalente", 0)
     equiv_porc = int((e_actual / total_e_ini) * 100) if total_e_ini > 0 else 0
