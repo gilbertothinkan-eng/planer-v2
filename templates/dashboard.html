@@ -61,6 +61,12 @@
   <a href="/logout" class="btn-logout">❌ SALIR</a>
 </div>
 
+{% if session.get('mensaje') %}
+<div id="mensaje-flash" style="background: #2e7d32; color: white; padding: 10px; margin-bottom: 20px; border-radius: 4px; text-align: center; border: 1px solid #00e676; transition: opacity 0.5s ease;">
+    {{ session.pop('mensaje') }}
+</div>
+{% endif %}
+
 <div class="top-row">
     <div class="panel">
       <h4 style="margin:0 0 10px 0;">1. Cargar Informe</h4>
@@ -196,6 +202,17 @@
     function cerrarModal() {
         document.getElementById('modalEditar').style.display = 'none';
     }
+
+    // Script para que el mensaje desaparezca solo en 2 segundos
+    setTimeout(function() {
+        var mensaje = document.getElementById('mensaje-flash');
+        if (mensaje) {
+            mensaje.style.opacity = '0';
+            setTimeout(function() { 
+                mensaje.style.display = 'none'; 
+            }, 500);
+        }
+    }, 2000);
 </script>
 
 </body>
