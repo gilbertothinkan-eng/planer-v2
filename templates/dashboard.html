@@ -45,6 +45,22 @@
       .card-v { background:#252525; padding:10px; margin:8px 0; border-radius:4px; border-left:4px solid #ff9800; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:3px 6px; border-radius:4px; font-size:0.7em; color: #00e676; display: inline-block; margin: 2px; }
 
+      /* ESTILOS KPI NEÓN */
+      .kpi-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+      .kpi-card { 
+          flex: 1; min-width: 120px; padding: 10px; border-radius: 8px; background: #1a1a1a; 
+          text-align: center; border: 1px solid #333; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+      }
+      .kpi-card span { display: block; font-size: 1.4em; font-weight: bold; margin-top: 5px; }
+      .kpi-card label { font-size: 0.65em; text-transform: uppercase; color: #aaa; letter-spacing: 1px; }
+      
+      .neon-fucsia { border-color: #ff00ff !important; box-shadow: 0 0 10px rgba(255, 0, 255, 0.2); color: #ff00ff; }
+      .neon-blanco { border-color: #ffffff !important; box-shadow: 0 0 10px rgba(255, 255, 255, 0.2); color: #ffffff; }
+      .neon-amarillo { border-color: #ffff00 !important; box-shadow: 0 0 10px rgba(255, 255, 0, 0.2); color: #ffff00; }
+      .neon-azul { border-color: #00ffff !important; box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); color: #00ffff; }
+      .neon-celeste { border-color: #81d4fa !important; box-shadow: 0 0 10px rgba(129, 212, 250, 0.2); color: #81d4fa; }
+      .neon-verde { border-color: #00e676 !important; box-shadow: 0 0 10px rgba(0, 230, 118, 0.2); color: #00e676; }
+
       /* ESTILO VENTANITA MODAL */
       .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
       .modal-content { background: #1e1e1e; margin: 5% auto; padding: 20px; border: 1px solid #81d4fa; width: 400px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
@@ -59,6 +75,43 @@
       <p style="color:#00e676; margin:0; font-size: 1.1em; font-weight: bold;">By Gilberto Thinkan®</p>
   </div>
   <a href="/logout" class="btn-logout">❌ SALIR</a>
+</div>
+
+<div class="kpi-container">
+    <div class="kpi-card neon-fucsia">
+        <label>Inv. Físico</label>
+        <span>{{ session.get('kpi_fisico', 0) }}</span>
+    </div>
+    <div class="kpi-card neon-blanco">
+        <label>Inv. Equivalente</label>
+        <span>{{ session.get('kpi_equivalente', 0) }}</span>
+    </div>
+    <div class="kpi-card neon-amarillo">
+        <label>Viajes Prog.</label>
+        <span>{{ session.get('kpi_viajes', 0) }}</span>
+    </div>
+    <div class="kpi-card neon-azul">
+        <label>Desp. Físico</label>
+        <span>{{ session.get('kpi_despacho_f', 0) }}</span>
+    </div>
+    <div class="kpi-card neon-celeste">
+        <label>Desp. Equiv.</label>
+        <span>{{ session.get('kpi_despacho_e', 0) }}</span>
+    </div>
+    <div class="kpi-card neon-verde">
+        <label>Eficiencia %</label>
+        <span>{{ session.get('kpi_eficiencia', 0) }}%</span>
+    </div>
+    <div class="kpi-card neon-azul" style="flex: 2; text-align: left; padding-left: 15px;">
+        <label>🏆 Top 5 Ciudades Despachadas</label>
+        <div style="font-size: 0.75em; margin-top: 5px; color: #e0e0e0;">
+            {% for ciudad, cant in session.get('kpi_top5', {}).items() %}
+                {{ loop.index }}. {{ ciudad }} ({{ cant }}){% if not loop.last %} | {% endif %}
+            {% else %}
+                Esperando reporte...
+            {% endfor %}
+        </div>
+    </div>
 </div>
 
 {% if session.get('mensaje') %}
@@ -80,7 +133,10 @@
       <form action="/generar_planeador" method="POST">
         <button type="submit" class="btn-generate">📦 GENERAR REPORTE EXCEL</button>
       </form>
-      <a href="/limpiar_cola" class="btn-clear">Limpiar cola de vehículos</a>
+      <div style="display: flex; gap: 10px;">
+          <a href="/limpiar_cola" class="btn-clear" style="flex: 1;">Limpiar cola de vehículos</a>
+          <a href="/reset_kpis" class="btn-clear" style="flex: 1; background: #444; border-color: #666;">Reiniciar KPIs</a>
+      </div>
     </div>
 </div>
 
@@ -203,7 +259,6 @@
         document.getElementById('modalEditar').style.display = 'none';
     }
 
-    // Script para que el mensaje desaparezca solo en 2 segundos
     setTimeout(function() {
         var mensaje = document.getElementById('mensaje-flash');
         if (mensaje) {
