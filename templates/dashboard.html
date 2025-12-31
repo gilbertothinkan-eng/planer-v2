@@ -132,11 +132,11 @@
                       <strong style="font-size:0.85em; color:#ff9800;">{{ v.placa }}</strong> 
                       <span style="font-size: 0.75em; color: #81d4fa;">Cap: {{ v.cantidad_motos }}</span>
                       <div>
-                          <button onclick="abrirModal('{{ loop.index0 }}', '{{ v.placa }}', '{{ v.cantidad_motos }}', '{{ v.transportadora }}', '{{ v.conductor }}', '{{ v.ciudades|join(', ') }}')" style="background:none; color:#81d4fa; cursor:pointer; font-size:0.9em; width:auto; padding:0 5px;">✏️</button>
+                          <button onclick="abrirModal('{{ loop.index0 }}', '{{ v.placa }}', '{{ v.cantidad_motos }}', '{{ v.transportadora }}', '{{ v.conductor }}', '{{ v.ciudades|join(', ') }}', '{{ v.modo_carga }}')" style="background:none; color:#81d4fa; cursor:pointer; font-size:0.9em; width:auto; padding:0 5px;">✏️</button>
                           <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-weight:bold;">[X]</a>
                       </div>
                   </div>
-                  <p style="font-size:0.7em; color:#aaa; margin:2px 0;">📍 {{ v.ciudades|join(", ") }}</p>
+                  <p style="font-size:0.7em; color:#aaa; margin:2px 0;">📍 {{ v.ciudades|join(", ") }} | 📦 {{ v.modo_carga|capitalize }}</p>
                   <div style="display:flex; flex-wrap:wrap; margin-top:5px;">
                       {% for r in v.resumen_visual %}
                         <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
@@ -163,6 +163,13 @@
             <input type="text" name="transportadora" id="edit_transp" placeholder="Transportadora">
             <input type="text" name="conductor" id="edit_cond" placeholder="Conductor">
             <input type="text" name="ciudades" id="edit_ciudades" placeholder="Ciudades" required>
+            
+            <select name="modo_carga" id="edit_modo_carga">
+                <option value="todas">Carga Mixta (Todo)</option>
+                <option value="normales">Solo Normales</option>
+                <option value="especiales">Solo Especiales</option>
+            </select>
+
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <button type="submit" class="btn-primary">GUARDAR</button>
                 <button type="button" onclick="cerrarModal()" style="background:#444;">SALIR</button>
@@ -176,13 +183,14 @@
         var content = document.getElementById('refs');
         content.classList.toggle('show');
     }
-    function abrirModal(index, placa, cap, transp, cond, ciudades) {
+    function abrirModal(index, placa, cap, transp, cond, ciudades, modo_carga) {
         document.getElementById('edit_indice').value = index;
         document.getElementById('edit_placa').value = placa;
         document.getElementById('edit_capacidad').value = cap;
         document.getElementById('edit_transp').value = transp;
         document.getElementById('edit_cond').value = cond;
         document.getElementById('edit_ciudades').value = ciudades;
+        document.getElementById('edit_modo_carga').value = modo_carga;
         document.getElementById('modalEditar').style.display = 'block';
     }
     function cerrarModal() {
