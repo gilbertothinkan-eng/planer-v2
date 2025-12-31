@@ -45,13 +45,13 @@
       .card-v { background:#252525; padding:10px; margin:8px 0; border-radius:4px; border-left:4px solid #ff9800; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:3px 6px; border-radius:4px; font-size:0.7em; color: #00e676; display: inline-block; margin: 2px; }
 
-      /* ESTILOS KPI NEÓN */
+      /* ESTILOS KPI NEÓN ACTUALIZADOS */
       .kpi-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
       .kpi-card { 
           flex: 1; min-width: 120px; padding: 10px; border-radius: 8px; background: #1a1a1a; 
           text-align: center; border: 1px solid #333; box-shadow: 0 0 5px rgba(0,0,0,0.5);
       }
-      .kpi-card span { display: block; font-size: 1.4em; font-weight: bold; margin-top: 5px; }
+      .kpi-card span { display: block; font-size: 1.7em; font-weight: bold; margin-top: 5px; }
       .kpi-card label { font-size: 0.65em; text-transform: uppercase; color: #aaa; letter-spacing: 1px; }
       
       .neon-fucsia { border-color: #ff00ff !important; box-shadow: 0 0 10px rgba(255, 0, 255, 0.2); color: #ff00ff; }
@@ -79,12 +79,12 @@
 <div class="kpi-container">
     <div class="kpi-card neon-fucsia">
         <label>Inv. Físico</label>
-        <span>{{ session.get('kpi_fisico', 0) }}</span>
+        <span>{{ session.get('kpi_fisico', 0) }} <small style="font-size: 0.5em;">Unds</small></span>
     </div>
     
     <div class="kpi-card neon-blanco">
         <label>Inv. Equivalente</label>
-        <span>{{ session.get('kpi_equivalente', 0) }}</span>
+        <span>{{ session.get('kpi_equivalente', 0) }} <small style="font-size: 0.5em;">Pos</small></span>
         <div style="width: 80%; background: #333; height: 5px; border-radius: 3px; margin: 5px auto; overflow: hidden;">
             <div style="width: {{ equiv_porc }}%; height: 100%; background: #fff; box-shadow: 0 0 5px #fff;"></div>
         </div>
@@ -96,23 +96,23 @@
     </div>
     <div class="kpi-card neon-azul">
         <label>Desp. Físico</label>
-        <span>{{ session.get('kpi_despacho_f', 0) }}</span>
+        <span>{{ session.get('kpi_despacho_f', 0) }} <small style="font-size: 0.5em;">Unds</small></span>
     </div>
     <div class="kpi-card neon-celeste">
         <label>Desp. Equiv.</label>
-        <span>{{ session.get('kpi_despacho_e', 0) }}</span>
+        <span>{{ session.get('kpi_despacho_e', 0) }} <small style="font-size: 0.5em;">Pos</small></span>
     </div>
 
-    <div class="kpi-card" style="border: 2px solid {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
-        <label>Eficiencia %</label>
-        <span style="color: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
+    <div class="kpi-card" style="border: 2px solid {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %}; min-width: 160px;">
+        <label>Eficiencia Total</label>
+        <span style="color: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %}; font-size: 2.2em; text-shadow: 0 0 10px {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
             {{ eficiencia }}%
         </span>
-        <div style="width: 85%; background: #222; height: 6px; border-radius: 3px; margin: 5px auto; overflow: hidden;">
+        <div style="width: 85%; background: #222; height: 8px; border-radius: 4px; margin: 5px auto; overflow: hidden; border: 1px solid #444;">
             <div style="width: {{ eficiencia }}%; height: 100%; background: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %}; box-shadow: 0 0 8px {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};"></div>
         </div>
-        <div style="font-size: 0.5em; font-weight: bold; color: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
-            {% if eficiencia < 31 %}Apenas iniciando{% elif eficiencia < 75 %}En proceso{% else %}¡Día exitoso!{% endif %}
+        <div style="font-size: 0.8em; font-weight: 900; color: {% if eficiencia < 31 %}#ff0055{% elif eficiencia < 75 %}#ffcc00{% else %}#00e676{% endif %};">
+            {% if eficiencia < 31 %}⚠️ OPERACIÓN CRÍTICA{% elif eficiencia < 75 %}⚡ OPERACIÓN ESTABLE{% else %}🏆 META CUMPLIDA{% endif %}
         </div>
     </div>
 
