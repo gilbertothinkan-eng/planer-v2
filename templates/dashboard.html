@@ -19,8 +19,8 @@
       .btn-generate { background: #0288d1; height: 50px; font-size: 1.1em; border: 1px solid #01579b; margin-bottom: 10px; }
       .btn-generate:hover { background: #0277bd; }
 
-      /* BOTÓN LIMPIAR COLA (Corregido: Ya no es un link feo) */
-      .btn-clear { background: #e65100; font-size: 0.75em; padding: 8px; border: 1px solid #ff9800; text-decoration: none; display: block; text-align: center; color: #ffffff; border-radius: 4px;font-weight: bold;text-transform: uppercase;}
+      /* BOTÓN LIMPIAR COLA */
+      .btn-clear { background: #e65100; font-size: 0.75em; padding: 8px; border: 1px solid #ff9800; text-decoration: none; display: block; text-align: center; color: #ffffff; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
       .btn-clear:hover { background: #ff9800; }
       
       .btn-logout { background: #d32f2f; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.8em; border: 1px solid #b71c1c; }
@@ -32,22 +32,25 @@
       .ciudad-item { padding:10px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
       
-      /* --- SCROLL DE VEHÍCULOS (Corregido para 2 vehículos) --- */
       .scroll-cola { 
-        height: 220px; /* Altura fija para forzar el scroll rápido */
+        height: 220px; 
         overflow-y: scroll; 
         margin-top: 10px;
         padding-right: 5px;
         background: #181818;
         border-radius: 4px;
       }
-      /* Estética de la barra de scroll */
       .scroll-cola::-webkit-scrollbar { width: 8px; }
       .scroll-cola::-webkit-scrollbar-track { background: #222; }
       .scroll-cola::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
 
       .card-v { background:#252525; padding:10px; margin:8px 0; border-radius:4px; border-left:4px solid #ff9800; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:3px 6px; border-radius:4px; font-size:0.7em; color: #00e676; display: inline-block; margin: 2px; }
+
+      /* --- ESTILOS MEJORA: VENTANITA MODAL --- */
+      .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+      .modal-content { background: #1e1e1e; margin: 10% auto; padding: 20px; border: 1px solid #81d4fa; width: 350px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+      .btn-cancel { background: #444; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -133,7 +136,10 @@
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                       <strong style="font-size:0.85em; color:#ff9800;">{{ v.placa }}</strong> 
                       <span style="font-size: 0.75em; color: #81d4fa;">Cap: {{ v.cantidad_motos }}</span>
-                      <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-weight:bold;">[X]</a>
+                      <div>
+                          <button onclick="abrirModal('{{ loop.index0 }}', '{{ v.placa }}', '{{ v.cantidad_motos }}')" style="background:none; color:#81d4fa; cursor:pointer; font-size:0.9em; width:auto; padding:0 10px;">✏️</button>
+                          <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-weight:bold;">[X]</a>
+                      </div>
                   </div>
                   <p style="font-size:0.7em; color:#aaa; margin:2px 0;">📍 {{ v.ciudades|join(", ") }}</p>
                   
@@ -151,10 +157,36 @@
     </div>
 </div>
 
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <h3 style="color:#81d4fa; margin-top:0; font-size: 1em;">Editar Vehículo</h3>
+        <form action="/editar_vehiculo" method="POST">
+            <input type="hidden" name="indice" id="edit_indice">
+            <label style="font-size:0.75em; color:#aaa;">Placa:</label>
+            <input type="text" name="placa" id="edit_placa" required>
+            <label style="font-size:0.75em; color:#aaa;">Capacidad:</label>
+            <input type="number" name="cantidad_motos" id="edit_capacidad" required>
+            <button type="submit" class="btn-primary" style="margin-top:10px;">GUARDAR CAMBIOS</button>
+            <button type="button" class="btn-cancel" onclick="cerrarModal()">CANCELAR</button>
+        </form>
+    </div>
+</div>
+
 <script>
     function toggleAccordion() {
         var content = document.getElementById('refs');
         content.classList.toggle('show');
+    }
+    
+    function abrirModal(index, placa, cap) {
+        document.getElementById('edit_indice').value = index;
+        document.getElementById('edit_placa').value = placa;
+        document.getElementById('edit_capacidad').value = cap;
+        document.getElementById('modalEditar').style.display = 'block';
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalEditar').style.display = 'none';
     }
 </script>
 
