@@ -65,8 +65,9 @@ def _actualizar_estado_inventario(df, user_id):
             refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
     session["referencias_seleccionadas"] = refs
     
-    # --- ACTUALIZAR KPIs DE INVENTARIO (TARJETAS 1 Y 2) ---
-    session["kpi_fisico"] = int(len(df))
+    # --- ACTUALIZAR KPIs DE INVENTARIO ---
+    # Inv. Físico usa la foto estática del inicio. Inv. Equivalente sigue siendo lo disponible.
+    session["kpi_fisico"] = session.get("kpi_inv_fisico_estatico", int(len(df)))
     session["kpi_equivalente"] = int(df["peso_espacio"].sum())
 
 @app.route("/", methods=["GET", "POST"])
@@ -77,7 +78,6 @@ def login():
             session.clear()
             session["usuario"], session["user_id"] = user, str(uuid.uuid4())
             session["vehiculos"] = []
-            # Inicializar acumuladores de KPIs
             session["kpi_viajes"] = 0
             session["kpi_despacho_f"] = 0
             session["kpi_despacho_e"] = 0
@@ -109,7 +109,8 @@ def upload():
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
     
-    # Guardar total inicial para cálculo de eficiencia posterior
+    # MEJORA: Foto estática del inventario inicial (No cambiará al generar reportes)
+    session["kpi_inv_fisico_estatico"] = int(len(df))
     session["total_equivalente_inicial"] = int(df["peso_espacio"].sum())
     
     _actualizar_estado_inventario(df, session['user_id'])
@@ -143,9 +144,7 @@ def registrar_vehiculo():
         "procesado": False
     })
     
-    # --- KPI: VEHÍCULOS PROGRAMADOS (TARJETA 3) ---
     session["kpi_viajes"] = session.get("kpi_viajes", 0) + 1
-    
     session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
     return redirect(url_for("dashboard"))
 
@@ -169,11 +168,7 @@ def eliminar_vehiculo(indice):
     v_list = session.get("vehiculos", [])
     if 0 <= indice < len(v_list): 
         v_list.pop(indice)
-        # Opcional: ¿restar al contador de viajes? 
-        # Si quieres que sea un histórico estricto, no restes. 
-        # Si quieres que sea de la cola actual, resta 1:
         session["kpi_viajes"] = max(0, session.get("kpi_viajes", 0) - 1)
-        
     session["vehiculos"], session.modified = v_list, True
     return redirect(url_for("dashboard"))
 
@@ -226,7 +221,6 @@ def generar_planeador():
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 
-                # --- DATOS PARA KPIs ---
                 total_despacho_fisico += len(asignado)
                 total_despacho_equivalente += peso_final
                 ciudades_acumuladas.extend(asignado["Descr EXXIT"].str.upper().tolist())
@@ -243,20 +237,19 @@ def generar_planeador():
                 v["procesado"] = True
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
 
-    # --- ACTUALIZAR ACUMULADOS EN SESIÓN (TARJETAS 4, 5, 6 Y 7) ---
+    # --- ACTUALIZAR ACUMULADOS EN SESIÓN ---
     session["kpi_despacho_f"] = session.get("kpi_despacho_f", 0) + total_despacho_fisico
     session["kpi_despacho_e"] = session.get("kpi_despacho_e", 0) + total_despacho_equivalente
     
-    # Eficiencia basada en lo despachado vs el inventario inicial cargado
-    if session.get("total_equivalente_inicial", 0) > 0:
-        session["kpi_eficiencia"] = int((session["kpi_despacho_e"] / session["total_equivalente_inicial"]) * 100)
+    # MEJORA: Eficiencia basada estrictamente en unidades Físicas Despachadas vs Inventario Inicial Físico
+    inv_inicial_f = session.get("kpi_inv_fisico_estatico", 0)
+    if inv_inicial_f > 0:
+        session["kpi_eficiencia"] = int((session["kpi_despacho_f"] / inv_inicial_f) * 100)
     
-    # Actualizar Top 5 Ciudades
     top5_dict = dict(session.get("kpi_top5", {}))
     nuevos_conteos = Counter(ciudades_acumuladas)
     for ciudad, cant in nuevos_conteos.items():
         top5_dict[ciudad] = top5_dict.get(ciudad, 0) + cant
-    # Ordenar y tomar solo los primeros 5
     session["kpi_top5"] = dict(sorted(top5_dict.items(), key=lambda x: x[1], reverse=True)[:5])
 
     _actualizar_estado_inventario(df_pend, session['user_id'])
