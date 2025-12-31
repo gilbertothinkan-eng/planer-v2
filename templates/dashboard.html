@@ -10,30 +10,43 @@
       .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
       
       input, select { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #2b2b2b; color: #fff; box-sizing: border-box; font-size: 0.85em; }
-      button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #00695c; color: #fff; font-weight: bold; width: 100%; }
       
-      .btn-generate { background: #0288d1; height: 50px; font-size: 1.1em; border: 1px solid #01579b; }
-      .btn-logout { background: #d32f2f; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.8em; }
+      /* Botones principales */
+      button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; color: #fff; font-weight: bold; width: 100%; transition: 0.3s; }
+      .btn-primary { background: #00695c; }
+      .btn-primary:hover { background: #004d40; }
       
-      .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 8px; border: 1px solid #444; cursor: pointer; margin-top: 5px; font-size: 0.8em; }
+      .btn-generate { background: #0288d1; height: 50px; font-size: 1.1em; border: 1px solid #01579b; margin-bottom: 10px; }
+      .btn-generate:hover { background: #0277bd; }
+
+      /* BOTÓN LIMPIAR COLA (Corregido: Ya no es un link feo) */
+      .btn-clear { background: #424242; font-size: 0.75em; padding: 5px; border: 1px solid #616161; text-decoration: none; display: block; text-align: center; color: #eee; border-radius: 4px; }
+      .btn-clear:hover { background: #616161; }
+      
+      .btn-logout { background: #d32f2f; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.8em; border: 1px solid #b71c1c; }
+
+      .accordion-button { width: 100%; text-align: left; background: #333; color: #fff; padding: 8px; border: 1px solid #444; cursor: pointer; margin-top: 5px; font-size: 0.8em; border-radius: 4px; }
       .accordion-content { display: none; background: #141414; border: 1px solid #444; max-height: 150px; overflow-y: auto; }
       .show { display: block !important; }
       
       .ciudad-item { padding:10px; border-bottom:1px solid #333; }
       .ciudad-especial { background: #1a2633; border-left: 4px solid #81d4fa; }
       
-      /* --- SCROLL: SE ACTIVA CON 2 VEHÍCULOS --- */
+      /* --- SCROLL DE VEHÍCULOS (Corregido para 2 vehículos) --- */
       .scroll-cola { 
-        max-height: 210px; 
-        overflow-y: auto; 
+        height: 220px; /* Altura fija para forzar el scroll rápido */
+        overflow-y: scroll; 
         margin-top: 10px;
         padding-right: 5px;
+        background: #181818;
+        border-radius: 4px;
       }
+      /* Estética de la barra de scroll */
       .scroll-cola::-webkit-scrollbar { width: 8px; }
+      .scroll-cola::-webkit-scrollbar-track { background: #222; }
       .scroll-cola::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
 
-      .card-v { background:#252525; padding:10px; margin-top:8px; border-radius:4px; border-left:4px solid #ff9800; }
-      /* TAGS VERDES PARA REFERENCIAS ESPECIALES */
+      .card-v { background:#252525; padding:10px; margin:8px 0; border-radius:4px; border-left:4px solid #ff9800; }
       .tag-ref { background:#111; border:1px solid #00e676; padding:3px 6px; border-radius:4px; font-size:0.7em; color: #00e676; display: inline-block; margin: 2px; }
     </style>
 </head>
@@ -42,7 +55,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
   <div style="width: 80px;"></div> 
   <div style="text-align: center;">
-      <h2 style="color:#81d4fa; margin:0; letter-spacing: 1px;">Planeador Logístico AKT</h2>
+      <h2 style="color:#81d4fa; margin:0;">Planeador Logístico AKT</h2>
       <p style="color:#00e676; margin:0; font-size: 0.8em; font-weight: bold;">By Gilberto Thinkan®</p>
   </div>
   <a href="/logout" class="btn-logout">❌ SALIR</a>
@@ -53,22 +66,22 @@
       <h4 style="margin:0 0 10px 0;">1. Cargar Informe</h4>
       <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; gap:10px;">
           <input type="file" name="file" required style="flex-grow:1;">
-          <button type="submit" style="width:auto; background:#00897b; padding: 0 20px;">Analizar Archivo</button>
+          <button type="submit" class="btn-primary" style="width:auto; padding: 0 20px;">Analizar Archivo</button>
       </form>
     </div>
     
-    <div class="panel" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-      <form action="/generar_planeador" method="POST" style="width:100%;">
+    <div class="panel" style="display:flex; flex-direction:column; justify-content:center;">
+      <form action="/generar_planeador" method="POST">
         <button type="submit" class="btn-generate">📦 GENERAR REPORTE EXCEL</button>
       </form>
-      <a href="/limpiar_cola" style="color: #888; font-size: 0.65em; text-decoration: none; margin-top: 8px;">[Limpiar cola de vehículos]</a>
+      <a href="/limpiar_cola" class="btn-clear">Limpiar cola de vehículos</a>
     </div>
 </div>
 
 <div class="main-grid">
     <div class="panel">
       <h4 style="margin:0 0 10px 0;">Motos Disponibles (Estado 40)</h4>
-      <div style="max-height: 500px; overflow-y: auto;">
+      <div style="max-height: 480px; overflow-y: auto;">
         {% for ciudad, datos in conteo_detallado.items() %}
           <div class="ciudad-item {% if ciudad in ciudades_especiales %}ciudad-especial{% endif %}" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
@@ -108,28 +121,32 @@
             {% endfor %}
         </div>
         
-        <button type="submit" style="margin-top:10px; background:#00897b;">+ Agregar Vehículo</button>
+        <button type="submit" class="btn-primary" style="margin-top:10px;">+ Agregar Vehículo</button>
       </form>
 
       <p style="margin: 15px 0 5px 0; font-size:0.85em; font-weight:bold;">Vehículos en Cola:</p>
       
       <div class="scroll-cola">
-          {% for v in vehiculos %}
-            <div class="card-v">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong style="font-size:0.85em; color:#ff9800;">{{ v.placa }}</strong> 
-                  <span style="font-size: 0.75em; color: #81d4fa;">Cap: {{ v.cantidad_motos }}</span>
-                  <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#d32f2f; text-decoration:none; font-weight:bold; font-size:0.9em;">[X]</a>
-              </div>
-              <p style="font-size:0.7em; color:#aaa; margin:2px 0;">📍 {{ v.ciudades|join(", ") }}</p>
-              
-              <div style="display:flex; flex-wrap:wrap; margin-top:5px;">
-                  {% for r in v.resumen_visual %}
-                    <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
-                  {% endfor %}
-              </div>
-            </div>
-          {% endfor %}
+          {% if vehiculos %}
+              {% for v in vehiculos %}
+                <div class="card-v">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <strong style="font-size:0.85em; color:#ff9800;">{{ v.placa }}</strong> 
+                      <span style="font-size: 0.75em; color: #81d4fa;">Cap: {{ v.cantidad_motos }}</span>
+                      <a href="/eliminar_vehiculo/{{ loop.index0 }}" style="color:#ff5252; text-decoration:none; font-weight:bold;">[X]</a>
+                  </div>
+                  <p style="font-size:0.7em; color:#aaa; margin:2px 0;">📍 {{ v.ciudades|join(", ") }}</p>
+                  
+                  <div style="display:flex; flex-wrap:wrap; margin-top:5px;">
+                      {% for r in v.resumen_visual %}
+                        <div class="tag-ref">{{ r.nombre }} ({{ r.cant }}u)</div>
+                      {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+          {% else %}
+              <p style="text-align:center; color:#555; font-size:0.8em; margin-top:20px;">No hay vehículos programados</p>
+          {% endif %}
       </div>
     </div>
 </div>
