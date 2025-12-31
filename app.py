@@ -9,8 +9,10 @@ app.secret_key = "gilberto_clave_super_secreta"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# 1. USUARIOS
 USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
 
+# 2. TABLA DE EQUIVALENCIAS
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -129,7 +131,6 @@ def registrar_vehiculo():
     session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
     return redirect(url_for("dashboard"))
 
-# --- RUTA NUEVA: EDITAR VEHÍCULO ---
 @app.route("/editar_vehiculo", methods=["POST"])
 def editar_vehiculo():
     v_list = session.get("vehiculos", [])
@@ -137,6 +138,9 @@ def editar_vehiculo():
     if 0 <= indice < len(v_list):
         v_list[indice]["placa"] = request.form.get("placa").upper()
         v_list[indice]["cantidad_motos"] = int(request.form.get("cantidad_motos"))
+        v_list[indice]["transportadora"] = request.form.get("transportadora")
+        v_list[indice]["conductor"] = request.form.get("conductor")
+        v_list[indice]["ciudades"] = [c.strip().upper() for c in request.form.get("ciudades").split(",")]
         session["vehiculos"] = v_list
         session.modified = True
     return redirect(url_for("dashboard"))
