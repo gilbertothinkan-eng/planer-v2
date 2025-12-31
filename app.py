@@ -9,10 +9,8 @@ app.secret_key = "gilberto_clave_super_secreta"
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# 1. USUARIOS (Intactos)
 USUARIOS_AUTORIZADOS = {"admin": "1234", "gilberto": "akt2025", "logistica": "akt01"}
 
-# 2. TABLA DE EQUIVALENCIAS (Intacta)
 equivalencias = {
     "AK200ZW": 6, "ATUL RIK": 12, "AK250CR4 EFI": 2, "HIMALAYAN 452": 2,
     "HNTR 350": 2, "300AC": 2, "300DS": 2, "300RALLY": 2,
@@ -47,7 +45,6 @@ def _knapsack_max_peso_min_items(items: List[dict], capacidad: int) -> Tuple[Lis
     best_c = max(range(capacidad + 1), key=lambda x: dp[x])
     return sel[best_c], dp[best_c][0]
 
-# Función auxiliar para no repetir código de actualización
 def _actualizar_estado_inventario(df, user_id):
     df.to_pickle(os.path.join(UPLOAD_FOLDER, f"{user_id}_datos.pkl"))
     conteo_det = {}
@@ -57,10 +54,8 @@ def _actualizar_estado_inventario(df, user_id):
         norm = int(len(df_c[df_c["peso_espacio"] == 1]))
         esp = int(len(df_c[df_c["peso_espacio"] > 1]))
         conteo_det[c] = {"total": norm + esp, "normales": norm, "especiales": esp}
-    
     session["conteo_detallado"] = conteo_det
     session["ciudades_especiales"] = [c for c, v in conteo_det.items() if v["especiales"] > 0]
-    
     refs = {}
     for (ciudad, cod), g in df.groupby([df["Descr EXXIT"].str.upper(), "COD INT"]):
         eq = get_equivalencia(cod)
@@ -101,7 +96,6 @@ def upload():
     df = df[df["Estado Satf"] == 40].copy()
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
-    
     _actualizar_estado_inventario(df, session['user_id'])
     session["mensaje"] = "✅ Archivo analizado"
     return redirect(url_for("dashboard"))
@@ -111,7 +105,6 @@ def registrar_vehiculo():
     v_list = session.get("vehiculos", [])
     ciudades_input = [c.strip().upper() for c in request.form["ciudades"].split(",")]
     refs_ids = request.form.getlist("refs_especiales")
-    
     resumen_visual = []
     referencias_data = session.get("referencias_seleccionadas", {})
     for ciudad, lista_refs in referencias_data.items():
@@ -122,7 +115,6 @@ def registrar_vehiculo():
                         "ciudad": ciudad, "nombre": r['cod_int'],
                         "cant": r['cantidad'], "peso_total": r['cantidad'] * r['equivalencia']
                     })
-
     v_list.append({
         "transportadora": request.form["transportadora"],
         "conductor": request.form["conductor"],
@@ -132,9 +124,21 @@ def registrar_vehiculo():
         "modo_carga": request.form.get("modo_carga", "todas"),
         "refs_permitidas": refs_ids,
         "resumen_visual": resumen_visual,
-        "procesado": False  # Para saber si ya se generó su Excel
+        "procesado": False
     })
     session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
+    return redirect(url_for("dashboard"))
+
+# --- RUTA NUEVA: EDITAR VEHÍCULO ---
+@app.route("/editar_vehiculo", methods=["POST"])
+def editar_vehiculo():
+    v_list = session.get("vehiculos", [])
+    indice = int(request.form.get("indice"))
+    if 0 <= indice < len(v_list):
+        v_list[indice]["placa"] = request.form.get("placa").upper()
+        v_list[indice]["cantidad_motos"] = int(request.form.get("cantidad_motos"))
+        session["vehiculos"] = v_list
+        session.modified = True
     return redirect(url_for("dashboard"))
 
 @app.route("/eliminar_vehiculo/<int:indice>")
@@ -164,47 +168,34 @@ def generar_planeador():
             cap, modo, permitidas = v["cantidad_motos"], v["modo_carga"], v["refs_permitidas"]
             posibles = df_pend[df_pend["Descr EXXIT"].str.upper().isin(v["ciudades"])].copy()
             posibles = posibles.sort_values(["Reserva", "Dirección 1"])
-
             def permitido(r):
                 if modo == "normales" and r["peso_espacio"] > 1: return False
                 if modo == "especiales" and r["peso_espacio"] == 1: return False
                 if r["peso_espacio"] > 1:
                     return f"{r['Descr EXXIT'].upper()}_{r['COD INT']}" in permitidas
                 return True
-
             posibles = posibles[posibles.apply(permitido, axis=1)]
             grupos = posibles.groupby("Dirección 1").agg(peso=("peso_espacio", "sum"), idxs=("peso_espacio", lambda x: list(x.index))).reset_index()
             items = [{"id": i, "peso": int(r["peso"])} for i, r in grupos.iterrows() if r["peso"] <= cap]
-
             ids, peso_final = _knapsack_max_peso_min_items(items, cap)
             if peso_final > 0:
                 filas = []
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 hoja = _excel_safe_sheet_name(v["placa"])
-                
                 porcentaje = f"{(peso_final / cap) * 100:.1f}%"
                 enc = pd.DataFrame([{
-                    "Transportadora": v["transportadora"], 
-                    "Conductor": v["conductor"], 
-                    "Placa": v["placa"], 
-                    "Capacidad": cap, 
-                    "Ocupado": peso_final,
-                    "Carga %": porcentaje
+                    "Transportadora": v["transportadora"], "Conductor": v["conductor"], 
+                    "Placa": v["placa"], "Capacidad": cap, "Ocupado": peso_final, "Carga %": porcentaje
                 }])
                 enc.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
                 asignado[columnas].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
-                
-                # LA MEJORA SOLICITADA: Se elimina del inventario lo asignado
                 df_pend = df_pend.drop(asignado.index)
                 v["procesado"] = True
-
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
 
-    # Actualizar el archivo de datos y la sesión con el inventario restante
     _actualizar_estado_inventario(df_pend, session['user_id'])
     session.modified = True
-
     output.seek(0)
     return send_file(output, as_attachment=True, download_name="Planeador_AKT_Gilberto.xlsx")
 
