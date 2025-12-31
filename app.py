@@ -26,6 +26,50 @@ equivalencias = {
     "AK200TTR EIII": 1, "DYNAMIC RX": 1,
 }
 
+# 3. DICCIONARIO DE ACCESORIOS (Gilberto: Agrega nuevos aquí)
+DICCIONARIO_ACCESORIOS = [
+    {"ref": "7700149290036", "desc": "Retrovisor Izq 100/110NV Mp", "clave": "Moto AK110NV"},
+    {"ref": "7700149289948", "desc": "Retrovisor Der 100/110NV Mp", "clave": "Moto AK110NV"},
+    {"ref": "7700149313384", "desc": "Retrovisor Izq AK125CH V2 Mp", "clave": "Moto AK125 CHR"},
+    {"ref": "7700149313377", "desc": "Retrovisor Der AK125CH V2 Mp", "clave": "Moto AK125 CHR"},
+    {"ref": "7705946260961", "desc": "Retrovisor Der CR4 MP", "clave": "Moto AK125CR4"},
+    {"ref": "7701023034296", "desc": "Retrovisor Izq CR5 MP", "clave": "Moto AK125CR4"},
+    {"ref": "7705946260961", "desc": "Retrovisor Der CR4 MP", "clave": "Moto AK150CR4"},
+    {"ref": "7701023034296", "desc": "Retrovisor Izq CR5 MP", "clave": "Moto AK150CR4"},
+    {"ref": "7701023319133", "desc": "Retrovisor Derecho 125SC MP", "clave": "Moto AK125DYN"},
+    {"ref": "7701023319140", "desc": "Retrovisor Izquierdo 125SC MP", "clave": "Moto AK125DYN"},
+    {"ref": "7701023319164", "desc": "Retrovisor Izq 125W MP", "clave": "Moto AK125FLEX"},
+    {"ref": "7701023319157", "desc": "Retrovisor Der 125W MP", "clave": "Moto AK125FLEX"},
+    {"ref": "8430358507265", "desc": "Maletero SHAD SH-29 Ac", "clave": "Moto AK125FLEX CBS MLT"},
+    {"ref": "7705946843430", "desc": "Retrovisor Derecho 125NKD Mp", "clave": "Moto AK125NKD"},
+    {"ref": "7701023319119", "desc": "Retrovisor Izquierdo NKD MP", "clave": "Moto AK125NKD"},
+    {"ref": "7701023384834", "desc": "Retrovisor Izq BR Mp", "clave": "Moto AK125TTR"},
+    {"ref": "7701023384841", "desc": "Retrovisor Der BR Mp", "clave": "Moto AK125TTR"},
+    {"ref": "7701023384834", "desc": "Retrovisor Izq BR Mp", "clave": "Moto AK200TTR"},
+    {"ref": "7701023384841", "desc": "Retrovisor Der BR Mp", "clave": "Moto AK200TTR"},
+    {"ref": "7700149422420", "desc": "Retrovisor Izq 150DYN RX Mp", "clave": "Moto AK150DYN RX"},
+    {"ref": "7700149422413", "desc": "Retrovisor Der 150DYN RX Mp", "clave": "Moto AK150DYN RX"},
+    {"ref": "7700149218962", "desc": "Retrovisor IzquierdoXC15WX Mp", "clave": "Moto AK150JET"},
+    {"ref": "7700149218870", "desc": "Retrovisor Derecho XC15WX Mp", "clave": "Moto AK150JET"},
+    {"ref": "7700149457033", "desc": "Pintura Cupula TT 200 TA", "clave": "Moto AK200TT"},
+    {"ref": "7700149453707", "desc": "Retrovisor Derecho 200DS+ Mp", "clave": "Moto AK200TT"},
+    {"ref": "7700149453684", "desc": "Retrovisor Izquierdo 200DS+ Mp", "clave": "Moto AK200TT"},
+    {"ref": "7700149087797", "desc": "Maletero Spartan 45 LT Ng", "clave": "Moto AK200TT Rally"},
+    {"ref": "7700149087797", "desc": "Maletero Spartan 45 LT Ng", "clave": "Moto AK200TT ABS"},
+    {"ref": "7700149463164", "desc": "Retrovisor Derecho 250CR4 Mp", "clave": "Moto AK250EFI"},
+    {"ref": "7700149463157", "desc": "Retrovisor Izquierdo 250CR4 Mp", "clave": "Moto AK250EFI"},
+    {"ref": "7700149362917", "desc": "Retrovisor Der HY450 Mp", "clave": "Moto Hima"},
+    {"ref": "7700149362900", "desc": "Retrovisor Izq HY450 Mp", "clave": "Moto Hima"},
+    {"ref": "7705946987202", "desc": "Visor 300DS Mp", "clave": "Moto VOGE300DS"},
+    {"ref": "7705946987424", "desc": "Retrovisor Derecho 300DS Mp", "clave": "Moto VOGE300DS"},
+    {"ref": "7705946987417", "desc": "Retrovisor Izquierdo 300DS Mp", "clave": "Moto VOGE300DS"},
+    {"ref": "7700149256278", "desc": "Retrovisor Izq 300Rally Mp", "clave": "Moto VOGE300Rally"},
+    {"ref": "7700149243223", "desc": "Hand Saver Izq 300Rally Mp", "clave": "Moto VOGE300Rally"},
+    {"ref": "7700149243216", "desc": "Hand Saver Der 300Rally Mp", "clave": "Moto VOGE300Rally"},
+    {"ref": "7700149213615", "desc": "Visor Cto 300Rally Mp", "clave": "Moto VOGE300Rally"},
+    {"ref": "7700149213479", "desc": "Retrovisor Der 300Rally Mp", "clave": "Moto VOGE300Rally"}
+]
+
 def get_equivalencia(cod_int: str) -> int:
     if pd.isna(cod_int) or str(cod_int).strip() == "": return 1
     return equivalencias.get(str(cod_int).strip().upper(), 1)
@@ -93,11 +137,9 @@ def logout():
 @app.route("/dashboard")
 def dashboard():
     if "usuario" not in session: return redirect(url_for("login"))
-    
     total_e_ini = session.get("total_equivalente_inicial", 1)
     e_actual = session.get("kpi_equivalente", 0)
     equiv_porc = int((e_actual / total_e_ini) * 100) if total_e_ini > 0 else 0
-
     return render_template("dashboard.html", 
                            conteo_detallado=session.get("conteo_detallado", {}),
                            referencias=session.get("referencias_seleccionadas", {}),
@@ -113,10 +155,8 @@ def upload():
     df = df[df["Estado Satf"] == 40].copy()
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
-    
     session["kpi_inv_fisico_estatico"] = int(len(df))
     session["total_equivalente_inicial"] = int(df["peso_espacio"].sum())
-    
     _actualizar_estado_inventario(df, session['user_id'])
     session["mensaje"] = "✅ Archivo analizado"
     return redirect(url_for("dashboard"))
@@ -147,7 +187,6 @@ def registrar_vehiculo():
         "resumen_visual": resumen_visual,
         "procesado": False
     })
-    
     session["kpi_viajes"] = session.get("kpi_viajes", 0) + 1
     session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
     return redirect(url_for("dashboard"))
@@ -237,13 +276,34 @@ def generar_planeador():
                 }])
                 enc.to_excel(writer, sheet_name=hoja, index=False, startrow=0)
                 asignado[columnas].to_excel(writer, sheet_name=hoja, index=False, startrow=3)
+
+                # --- LÓGICA DE ACCESORIOS (COLUMNA N) ---
+                conteo_acc = {}
+                for _, moto in asignado.iterrows():
+                    desc_moto = str(moto["Descripcion"]).upper()
+                    for item in DICCIONARIO_ACCESORIOS:
+                        if item["clave"].upper() in desc_moto:
+                            ref_a = item["ref"]
+                            if ref_a not in conteo_acc:
+                                conteo_acc[ref_a] = {"desc": item["desc"], "cant": 0}
+                            conteo_acc[ref_a]["cant"] += 1
+                
+                if conteo_acc:
+                    df_acc = pd.DataFrame([
+                        {"Número de artículo": k, "Descripción": v_acc["desc"], "Cantidad a despachar": v_acc["cant"]}
+                        for k, v_acc in conteo_acc.items()
+                    ])
+                    ws = writer.sheets[hoja]
+                    ws.write(2, 13, "Campo de accesorios", writer.book.add_format({'bold': True, 'font_color': 'blue'}))
+                    df_acc.to_excel(writer, sheet_name=hoja, index=False, startrow=3, startcol=13)
+
                 df_pend = df_pend.drop(asignado.index)
                 v["procesado"] = True
+
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
 
     session["kpi_despacho_f"] = session.get("kpi_despacho_f", 0) + total_despacho_fisico
     session["kpi_despacho_e"] = session.get("kpi_despacho_e", 0) + total_despacho_equivalente
-    
     inv_inicial_f = session.get("kpi_inv_fisico_estatico", 0)
     if inv_inicial_f > 0:
         session["kpi_eficiencia"] = int((session["kpi_despacho_f"] / inv_inicial_f) * 100)
