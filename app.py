@@ -64,6 +64,10 @@ def _actualizar_estado_inventario(df, user_id):
         if eq > 1:
             refs.setdefault(ciudad, []).append({"cod_int": cod, "cantidad": int(len(g)), "equivalencia": eq})
     session["referencias_seleccionadas"] = refs
+    
+    # --- ACTUALIZAR KPIs DE INVENTARIO (TARJETAS 1 Y 2) ---
+    session["kpi_fisico"] = int(len(df))
+    session["kpi_equivalente"] = int(df["peso_espacio"].sum())
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -73,6 +77,12 @@ def login():
             session.clear()
             session["usuario"], session["user_id"] = user, str(uuid.uuid4())
             session["vehiculos"] = []
+            # Inicializar acumuladores de KPIs
+            session["kpi_viajes"] = 0
+            session["kpi_despacho_f"] = 0
+            session["kpi_despacho_e"] = 0
+            session["kpi_eficiencia"] = 0
+            session["kpi_top5"] = {}
             return redirect(url_for("dashboard"))
         return render_template("login.html", error="❌ Acceso Denegado")
     return render_template("login.html")
@@ -98,6 +108,10 @@ def upload():
     df = df[df["Estado Satf"] == 40].copy()
     df["Reserva"] = pd.to_datetime(df["Reserva"], errors="coerce")
     df["peso_espacio"] = df["COD INT"].apply(get_equivalencia)
+    
+    # Guardar total inicial para cálculo de eficiencia posterior
+    session["total_equivalente_inicial"] = int(df["peso_espacio"].sum())
+    
     _actualizar_estado_inventario(df, session['user_id'])
     session["mensaje"] = "✅ Archivo analizado"
     return redirect(url_for("dashboard"))
@@ -128,6 +142,10 @@ def registrar_vehiculo():
         "resumen_visual": resumen_visual,
         "procesado": False
     })
+    
+    # --- KPI: VEHÍCULOS PROGRAMADOS (TARJETA 3) ---
+    session["kpi_viajes"] = session.get("kpi_viajes", 0) + 1
+    
     session["vehiculos"], session.modified, session["mensaje"] = v_list, True, "✅ Vehículo agregado"
     return redirect(url_for("dashboard"))
 
@@ -149,7 +167,13 @@ def editar_vehiculo():
 @app.route("/eliminar_vehiculo/<int:indice>")
 def eliminar_vehiculo(indice):
     v_list = session.get("vehiculos", [])
-    if 0 <= indice < len(v_list): v_list.pop(indice)
+    if 0 <= indice < len(v_list): 
+        v_list.pop(indice)
+        # Opcional: ¿restar al contador de viajes? 
+        # Si quieres que sea un histórico estricto, no restes. 
+        # Si quieres que sea de la cola actual, resta 1:
+        session["kpi_viajes"] = max(0, session.get("kpi_viajes", 0) - 1)
+        
     session["vehiculos"], session.modified = v_list, True
     return redirect(url_for("dashboard"))
 
@@ -157,6 +181,16 @@ def eliminar_vehiculo(indice):
 def limpiar_cola():
     session["vehiculos"] = []
     session.modified = True
+    return redirect(url_for("dashboard"))
+
+@app.route("/reset_kpis")
+def reset_kpis():
+    session["kpi_viajes"] = 0
+    session["kpi_despacho_f"] = 0
+    session["kpi_despacho_e"] = 0
+    session["kpi_eficiencia"] = 0
+    session["kpi_top5"] = {}
+    session["mensaje"] = "♻️ KPIs Reiniciados"
     return redirect(url_for("dashboard"))
 
 @app.route("/generar_planeador", methods=["POST"])
@@ -167,6 +201,10 @@ def generar_planeador():
     vehiculos_usr = session.get("vehiculos", [])
     output = io.BytesIO()
     columnas = ["Nom PV", "No Ped", "Descr", "Descr EXXIT", "Dirección 1", "Clnt Envío", "ID Prod", "Descripcion", "ID Serie", "Estado Satf", "COD INT", "Reserva"]
+
+    total_despacho_fisico = 0
+    total_despacho_equivalente = 0
+    ciudades_acumuladas = []
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         for v in vehiculos_usr:
@@ -187,6 +225,12 @@ def generar_planeador():
                 filas = []
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
+                
+                # --- DATOS PARA KPIs ---
+                total_despacho_fisico += len(asignado)
+                total_despacho_equivalente += peso_final
+                ciudades_acumuladas.extend(asignado["Descr EXXIT"].str.upper().tolist())
+                
                 hoja = _excel_safe_sheet_name(v["placa"])
                 porcentaje = f"{(peso_final / cap) * 100:.1f}%"
                 enc = pd.DataFrame([{
@@ -198,6 +242,22 @@ def generar_planeador():
                 df_pend = df_pend.drop(asignado.index)
                 v["procesado"] = True
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
+
+    # --- ACTUALIZAR ACUMULADOS EN SESIÓN (TARJETAS 4, 5, 6 Y 7) ---
+    session["kpi_despacho_f"] = session.get("kpi_despacho_f", 0) + total_despacho_fisico
+    session["kpi_despacho_e"] = session.get("kpi_despacho_e", 0) + total_despacho_equivalente
+    
+    # Eficiencia basada en lo despachado vs el inventario inicial cargado
+    if session.get("total_equivalente_inicial", 0) > 0:
+        session["kpi_eficiencia"] = int((session["kpi_despacho_e"] / session["total_equivalente_inicial"]) * 100)
+    
+    # Actualizar Top 5 Ciudades
+    top5_dict = dict(session.get("kpi_top5", {}))
+    nuevos_conteos = Counter(ciudades_acumuladas)
+    for ciudad, cant in nuevos_conteos.items():
+        top5_dict[ciudad] = top5_dict.get(ciudad, 0) + cant
+    # Ordenar y tomar solo los primeros 5
+    session["kpi_top5"] = dict(sorted(top5_dict.items(), key=lambda x: x[1], reverse=True)[:5])
 
     _actualizar_estado_inventario(df_pend, session['user_id'])
     session.modified = True
