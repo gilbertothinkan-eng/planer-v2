@@ -264,35 +264,6 @@ def generar_planeador():
                 for gid in ids: filas.extend(grupos.iloc[gid]["idxs"])
                 asignado = df_pend.loc[filas].sort_values(["Reserva", "Dirección 1"])
                 
-                # =====================================================
-                # RELLENO HUMANO CONTROLADO (POST KNAPSACK)
-                # =====================================================
-                espacio_libre = cap - peso_final
-                if espacio_libre > 0:
-                    direcciones_usadas = set(asignado["Dirección 1"].unique())
-
-                    candidatos = df_pend[
-                        (~df_pend.index.isin(asignado.index)) &
-                        (~df_pend["Dirección 1"].isin(direcciones_usadas)) &
-                        (df_pend["peso_espacio"] == 1)
-                    ].sort_values("Reserva")
-
-                    if not candidatos.empty:
-                        direccion_objetivo = candidatos.iloc[0]["Dirección 1"]
-
-                        motos_extra = candidatos[
-                            candidatos["Dirección 1"] == direccion_objetivo
-                        ].head(espacio_libre)
-
-                        if not motos_extra.empty:
-                            motos_extra = motos_extra.copy()
-                            motos_extra["OBSERVACION"] = "AJUSTE OPERATIVO"
-
-                            asignado = pd.concat([asignado, motos_extra])
-                            peso_final = int(asignado["peso_espacio"].sum())
-                # =====================================================               
-                
-                
                 total_despacho_fisico += len(asignado)
                 total_despacho_equivalente += peso_final
                 ciudades_acumuladas.extend(asignado["Descr EXXIT"].str.upper().tolist())
@@ -326,7 +297,7 @@ def generar_planeador():
                     ws.write(2, 13, "Campo de accesorios", writer.book.add_format({'bold': True, 'font_color': 'blue'}))
                     df_acc.to_excel(writer, sheet_name=hoja, index=False, startrow=3, startcol=13)
 
-                df_pend = df_pend.drop(asignado.index, errors="ignore")
+                df_pend = df_pend.drop(asignado.index)
                 v["procesado"] = True
 
         if not df_pend.empty: df_pend[columnas].to_excel(writer, sheet_name="NO_ASIGNADAS", index=False)
